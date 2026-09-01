@@ -32,7 +32,7 @@ const PROVINCES = [
 const SpotSchema = Schema({
     name: {
         type: String,
-        require: true
+        required: true
     },
     description: {
         type: String,
@@ -42,28 +42,29 @@ const SpotSchema = Schema({
         type: {
             type: String,
             enum: ['Point'],
-            default: 'Point',
-            require: true
+            default: 'Point'
         },
-        coordinates: [Number], // [lng, lat]
-        require: true
+        coordinates: {
+            type: [Number], // [lng, lat]
+            required: true
+        }
     },
     province: {
         type: String,
         enum: PROVINCES,
-        require: true
+        required: true
     },
     activityTypes: [
         {
             type: String,
             enum: ACTIVITY_TYPES,
-            require: true
+            required: true
         }
     ],
     difficulty: {
         type: String,
         enum: ['easy', 'moderate', 'hard'],
-        require: true
+        required: true
     },
     bestTimeOfDay: {
         type: String, // e.g. 'sunrise', 'sunset', 'anytime'
