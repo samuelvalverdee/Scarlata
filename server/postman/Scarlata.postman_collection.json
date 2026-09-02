@@ -1,0 +1,512 @@
+{
+  "info": {
+    "_postman_id": "b7c1e6a2-4f3d-4a7e-9c21-5f0a2d8e1a10",
+    "name": "Scarlata API (v1)",
+    "description": "Scarlata - Costa Rica outdoor-spot tracker. Local dev API.\n\nWHAT THIS API IS SHAPED LIKE\n- Auth is SESSION COOKIES, not tokens. There is no Authorization header anywhere in this API.\n  Run 'Auth > 2. Login' once and Postman carries the cookie automatically for localhost:3001.\n  If requests suddenly start returning 401, the session expired (24h) - just log in again.\n- Every request that sends a body sends JSON, with Content-Type: application/json.\n- Reads are public. Writes to /spots are ADMIN ONLY - users do not create spots.\n\nVARIABLES\n- baseUrl   comes from the 'Scarlata - Local' environment\n- spotId    filled in for you by 'List all spots' and 'Create spot', so you should never need\n            to paste an id by hand\n\nSUGGESTED FIRST RUN\n  1. Auth > 1. Register                 you are now a normal user\n  2. Spots - public > List all spots\n  3. Error cases > 403                  proves users cannot create spots\n  4. Promote yourself to admin          see the 'Create spot' description, then Login again\n  5. Spots - admin only > Create spot\n\nOnly endpoints that EXIST TODAY are in here. toVisit/visited, votes, reviews, visit logs and the\nprogress endpoints are Parts 3-7 in TODO.md, and get added to this collection as they land.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Register / login / logout. Start here - almost everything else needs a session.",
+      "item": [
+        {
+          "name": "1. Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"samuel\",\n  \"email\": \"samuel@example.com\",\n  \"password\": \"changeme123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Creates an account and signs you in immediately - the response sets the session cookie,\nso you do not need to call Login right after.\n\nBODY: username, email, password. All three required.\n\nNEW ACCOUNTS ARE ALWAYS role='user'. There is deliberately no route that grants admin.\nSee 'Spots - admin only > Create spot' for how to promote yourself.\n\nSuccess: 201 Created\nErrors:  409 if the email or username is already taken\n         400 if the password is missing"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+                  "const u = pm.response.json().user;",
+                  "pm.test(\"role defaults to 'user'\", () => pm.expect(u.role).to.eql('user'));",
+                  "pm.test(\"no password hash leaks in the response\", () => {",
+                  "  pm.expect(u).to.not.have.property('hash');",
+                  "  pm.expect(u).to.not.have.property('salt');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"samuel@example.com\",\n  \"password\": \"changeme123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Signs in and sets the session cookie. Postman stores cookies per domain automatically, so\nevery request after this one is authenticated - you do not add any header yourself.\n\nBODY: username + password.\nNOTE: the 'username' field also accepts the EMAIL address. The User model passes\nusernameQueryFields: ['email'] to passport-local-mongoose, so login matches on either one.\n\nSuccess: 200 OK\nErrors:  401 on wrong credentials"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const u = pm.response.json().user;",
+                  "  pm.collectionVariables.set('currentRole', u.role);",
+                  "  console.log('Signed in as', u.username, '| role:', u.role);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Who am I",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Returns the signed-in user. The React client will call this on page load to work out\nwhether it has a session at all.\n\nNO BODY. Requires the session cookie.\n\nSuccess: 200 OK\nErrors:  401 if signed out"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const u = pm.response.json().user;",
+                  "  console.log('Signed in as', u.username, '| role:', u.role);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Destroys the session.\n\nNO BODY, no headers.\n\nSuccess: 200 OK"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('currentRole', '');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Spots - public",
+      "description": "Readable while signed out. This is what the map and the spot pages will call.",
+      "item": [
+        {
+          "name": "List all spots",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots"],
+              "query": [
+                {
+                  "key": "activityType",
+                  "value": "waterfall",
+                  "disabled": true,
+                  "description": "NOT IMPLEMENTED YET - Part 3 in TODO.md. Enabling this does nothing today."
+                },
+                {
+                  "key": "province",
+                  "value": "Alajuela",
+                  "disabled": true,
+                  "description": "NOT IMPLEMENTED YET - Part 3 in TODO.md. Enabling this does nothing today."
+                }
+              ]
+            },
+            "description": "Every spot on the map. PUBLIC - works signed out.\n\nNO BODY, NO AUTH, no headers.\n\nQUERY PARAMS: none work yet. The two below are disabled placeholders for the filtering\nthat lands in Part 3 - leave them off for now.\n\nSuccess: 200 OK, a JSON array. It will be empty until the seed script exists (Part 2) or\n         you create a spot as an admin.\n\nThis request saves the first spot's id into {{spotId}}, so the requests below just work."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const spots = pm.response.json();",
+                  "pm.test(\"returns an array\", () => pm.expect(spots).to.be.an('array'));",
+                  "if (spots.length) {",
+                  "  pm.collectionVariables.set('spotId', spots[0]._id);",
+                  "  console.log('Saved spotId =', spots[0]._id, '(' + spots[0].name + ')');",
+                  "} else {",
+                  "  console.log('No spots yet. Run the seed script (Part 2), or Create spot as an admin.');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get one spot",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}"]
+            },
+            "description": "One spot by id. PUBLIC.\n\nNO BODY, NO AUTH.\n\n{{spotId}} is filled in automatically by 'List all spots' or 'Create spot'. You can also\nset it by hand under the collection's Variables tab.\n\nSuccess: 200 OK\nErrors:  404 if no spot has that id\n         400 if the id is not a valid ObjectId shape (24 hex chars)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"200 OK\", () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Spots - admin only",
+      "description": "Curation. Every request here needs role='admin' - see 'Create spot' for how to get it.",
+      "item": [
+        {
+          "name": "Create spot (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Catarata del Toro\",\n  \"description\": \"A 90m waterfall dropping into an extinct volcanic crater near Bajos del Toro.\",\n  \"province\": \"Alajuela\",\n  \"activityTypes\": [\"waterfall\", \"hiking\"],\n  \"difficulty\": \"moderate\",\n  \"bestTimeOfDay\": \"morning\",\n  \"waterfallHeightM\": 90,\n  \"trailLengthKm\": 1.5,\n  \"estimatedDurationHrs\": 2,\n  \"swimmable\": false,\n  \"oneDayTrip\": true,\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [-84.2247, 10.2081]\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Adds a spot to the map. ADMIN ONLY.\n\nHOW TO BECOME AN ADMIN - there is no route for it, on purpose. Register normally, then flip\nthe field directly in MongoDB:\n\n    mongosh scarlata\n    db.users.updateOne({ username: 'samuel' }, { $set: { role: 'admin' } })\n\nThen run 'Auth > 2. Login' again so the session picks up the new role.\n\nBODY - required: name, province, difficulty, location.coordinates\n\n  province       one of the seven, spelled WITH ACCENTS exactly as in models/spot.js:\n                 San Jose / Alajuela / Cartago / Heredia / Guanacaste / Puntarenas / Limon\n                 (copy the accented spellings out of the model - the enum is strict)\n  difficulty     easy | moderate | hard\n  activityTypes  array. hiking, waterfall, river, camping, viewpoint, hot-springs,\n                 hanging-bridges, zipline, rafting, snorkeling\n  coordinates    [longitude, latitude] - LONGITUDE FIRST. That is GeoJSON order and it is the\n                 reverse of what Google Maps shows you. Costa Rica sits around lng -86 to -82,\n                 lat 8 to 11, so the FIRST number should be negative.\n  addedBy        do not send it. The server sets it from your session, and strips it from\n                 update payloads so a request cannot rewrite who added a spot.\n\nEverything else (trailLengthKm, waterfallHeightM, maxOccupancy, permitRequired...) is\noptional and only applies to some kinds of spot.\n\nSuccess: 201 Created\nErrors:  401 signed out\n         403 signed in but not an admin\n         400 validation - the response carries a 'details' object naming each bad field"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const spot = pm.response.json();",
+                  "  pm.collectionVariables.set('spotId', spot._id);",
+                  "  console.log('Saved spotId =', spot._id);",
+                  "  pm.test(\"addedBy was recorded\", () => pm.expect(spot.addedBy).to.be.a('string'));",
+                  "  pm.test(\"no 'author' field - spots are not user-owned\", () =>",
+                  "    pm.expect(spot).to.not.have.property('author'));",
+                  "} else if (pm.response.code === 403) {",
+                  "  console.log(\"403 - you are signed in but not an admin. Read this request's description.\");",
+                  "} else if (pm.response.code === 400) {",
+                  "  console.log('400 - fields that failed:', JSON.stringify(pm.response.json().details));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update spot (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"difficulty\": \"hard\",\n  \"bestTimeOfDay\": \"sunrise\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Edits a spot. ADMIN ONLY.\n\nBODY: send only the fields you want to change - it is a partial update, untouched fields\nkeep their values.\n\nThe route loads the document and calls save(), rather than findByIdAndUpdate, so ALL schema\nvalidators run against the WHOLE document. An invalid enum is rejected even if it sits in a\nfield you did not send.\n\nSuccess: 200 OK - returns the updated spot\nErrors:  401, 403, 404, or 400 validation"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"200 OK\", () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete spot (admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}"]
+            },
+            "description": "Removes a spot. ADMIN ONLY.\n\nNO BODY.\n\nCASCADES: the post('findOneAndDelete') hook in models/spot.js also deletes every SpotEntry\n(someone's toVisit/visited record) and every Review pointing at this spot, so nothing is\nleft orphaned in the database.\n\nSuccess: 204 No Content. The response body is EMPTY - that is correct, not a bug. There is\n         nothing meaningful to return about a thing that no longer exists.\nErrors:  401, 403, 404"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 No Content\", () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('spotId', '');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Error cases (what good failures look like)",
+      "description": "Not busywork - these are exactly the behaviours Parts 1 and 1.5 were built to get right.\nRun them to see the difference between 401 and 403, and to see validation errors that name\nthe field that actually failed.",
+      "item": [
+        {
+          "name": "401 - write while signed out",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Should not be created\",\n  \"province\": \"Cartago\",\n  \"difficulty\": \"easy\",\n  \"location\": { \"coordinates\": [-83.85, 9.98] }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: run 'Auth > 4. Logout' first.\n\nShows that the API distinguishes 'I do not know who you are' (401) from 'I know you and you\nmay not do this' (403). The client needs that difference: 401 means show a login screen,\n403 means show an error."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"401 Unauthorized\", () => pm.response.to.have.status(401));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "403 - write as a normal user",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"User submitted spot\",\n  \"province\": \"Cartago\",\n  \"difficulty\": \"easy\",\n  \"location\": { \"coordinates\": [-83.85, 9.98] }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: run Register, or Login as an account whose role is still 'user'.\n\nThis is the entire point of the Part 1 correction. Users explore, visit, vote and review\nspots - they do not create them, because a user-submitted spot cannot be verified as a real\nand reachable place."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"403 Forbidden\", () => pm.response.to.have.status(403));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - validation, with per-field details",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bad Data\",\n  \"province\": \"Atlantis\",\n  \"difficulty\": \"trivial\",\n  \"location\": { \"coordinates\": [-83.85, 9.98] }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: must be signed in AS AN ADMIN, otherwise you get 403 before validation ever runs.\n\nTwo bad enum values at once. The response names BOTH in a 'details' object keyed by field,\nwhich is the shape react-hook-form wants so it can attach each message to the right input.\n\nThis used to return 500. Fixed in Part 1.5 (utils/normalizeError.js)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"names both offending fields\", () => {",
+                  "  const d = pm.response.json().details;",
+                  "  pm.expect(d).to.have.property('province');",
+                  "  pm.expect(d).to.have.property('difficulty');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - malformed id in the URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/not-a-real-id",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "not-a-real-id"]
+            },
+            "description": "A string that is not a valid ObjectId. Mongoose throws a CastError, which used to fall\nthrough as a 500. Now correctly 400 - the request was bad, the server was fine."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 - id shaped right, nothing there",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/000000000000000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "000000000000000000000000"]
+            },
+            "description": "A perfectly valid ObjectId that matches no document. Contrast with the request above:\nmalformed id = 400, well-formed id that finds nothing = 404."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"404 Not Found\", () => pm.response.to.have.status(404));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 - email already registered",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"samuel-again\",\n  \"email\": \"samuel@example.com\",\n  \"password\": \"changeme123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: run '1. Register' first so the email exists.\n\nReturns a clean 'That email is already taken'. It deliberately no longer echoes the raw\nMongoDB error, which used to leak the database name, collection name and index name straight\nto the client. Fixed in Part 1.5."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"409 Conflict\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"does not leak driver internals\", () =>",
+                  "  pm.expect(pm.response.json().error).to.not.include('E11000'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001/api/v1",
+      "description": "Overridden by the 'Scarlata - Local' environment when it is selected."
+    },
+    {
+      "key": "spotId",
+      "value": "",
+      "description": "Auto-filled by 'List all spots' and 'Create spot'. No need to paste ids by hand."
+    },
+    {
+      "key": "currentRole",
+      "value": "",
+      "description": "Auto-filled by Login, so you can see at a glance whether you are admin."
+    }
+  ]
+}
