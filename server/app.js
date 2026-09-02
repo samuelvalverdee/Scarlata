@@ -1,57 +1,70 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./db/connection');
-const Spot = require('./models/spot');
+const { MongoStore } = require('connect-mongo');
+
+const session = require("express-session");
+const passport = require("./config/passport");
+
+const ExpressError = require('./utils/ExpressError');
+const normalizeError = require('./utils/normalizeError');
+const authRouter = require('./routes/auth');
+const spotsRouter = require('./routes/spots');
 
 const app = express();
 
 async function main() {
-    await connectDB();
+    await connectDB(process.env.MONGO_URI);
 }
 
 main().catch((err) => console.log(`Connection error: ${err}`));
 
-// CORS: allow the future Vite dev server (default port 5173) to call this API
-// with cookies once auth lands. Update the origin if your client runs elsewhere.
+// *********************************************************************
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: process.env.CLIENT_ORIGIN,
     credentials: true,
 }));
 
 app.use(express.json());
 
+app.use(
+  session({
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGO_URI,
+      touchAfter: 24 * 3600, // only re-save an unchanged session once a day
+    }),
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 24 * 60 * 60 * 1000, // Cookie expires in 24 hours
+      secure: process.env.NODE_ENV === 'production', // HTTPS-only once actually deployed; plain http in dev
+    },
+  }),
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
+
 // *********************************************************************
-// Same CRUD shape as your YelpCamp app.js, but res.json(...) instead of
-// res.render(...) — no views here, this only ever speaks JSON.
-
-app.get('/api/spots', async (req, res) => {
-    const spots = await Spot.find({});
-    res.json(spots);
+app.get('/', (req, res) => {
+    res.send('Scarlata API running.');
 });
 
-app.post('/api/spots', async (req, res) => {
-    const spot = new Spot(req.body.spot);
-    await spot.save();
-    res.status(201).json(spot);
+app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/spots', spotsRouter);
+
+app.use((req, res, next) => {
+    next(new ExpressError('Page not found', 404));
 });
 
-app.get('/api/spots/:id', async (req, res) => {
-    const spot = await Spot.findById(req.params.id);
-    if (!spot) return res.status(404).json({ error: 'Spot not found' });
-    res.json(spot);
-});
-
-app.put('/api/spots/:id', async (req, res) => {
-    const { id } = req.params;
-    const spot = await Spot.findByIdAndUpdate(id, { ...req.body.spot }, { new: true });
-    if (!spot) return res.status(404).json({ error: 'Spot not found' });
-    res.json(spot);
-});
-
-app.delete('/api/spots/:id', async (req, res) => {
-    const { id } = req.params;
-    await Spot.findByIdAndDelete(id);
-    res.status(204).send();
+app.use((err, req, res, next) => {
+    const { statusCode, message, details } = normalizeError(err);
+    // A 5xx means we did not anticipate this one — it still has to be visible to us on the
+    // server even though the client only gets a generic message back.
+    if (statusCode >= 500) console.error(err);
+    res.status(statusCode).json({ error: message, ...(details && { details }) });
 });
 
 app.listen(3001, () => {

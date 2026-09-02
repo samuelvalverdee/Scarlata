@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
+const config = require('dotenv').config();
 
-async function connectDB(MONGO_URI = 'mongodb://127.0.0.1:27017/scarlata') {
+async function connectDB(MONGO_URI = config.MONGO_URI) {
     await mongoose.connect(MONGO_URI);
 }
 
