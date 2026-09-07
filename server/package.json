@@ -5,7 +5,8 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "seed": "node seeds/index.js"
   },
   "dependencies": {
     "connect-mongo": "^6.0.0",
