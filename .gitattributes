@@ -1,0 +1,4 @@
+# Git stores LF for every text file. eol=lf also makes checkouts LF on Windows, so the
+# working tree matches .editorconfig (end_of_line = lf) regardless of anyone's core.autocrlf setting.
+# Keep this at the repo root only: a nested .gitattributes overrides it for that subtree.
+* text=auto eol=lf
