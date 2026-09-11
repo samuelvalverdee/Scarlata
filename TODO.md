@@ -45,9 +45,12 @@ Sweep `PROJECT_PLAN.md` as part of Part 8 rather than as its own commit.
       sensible tallies, and `--with-activity` is reproducible across runs.
       Also fixed `db/connection.js`, whose default arg read `config.MONGO_URI` when
       `dotenv.config()` returns `{ parsed, error }`, so the default was always undefined.
-- [ ] **3, toVisit / visited.** `PUT /spots/:id/status`, plus `myStatus` on the list route so the
-      map can cross spots out in one request. **Next up.** The seeded `SpotEntry` data already
-      exercises both states, so this can be verified against real rows immediately.
+- [x] **3, toVisit / visited.** `PUT /spots/:id/status` (isLoggedIn, findSpot, upsert via
+      findOneAndUpdate, clears `vote` on downgrade out of 'visited'), plus `myStatus` on
+      `GET /spots` (plain `req.isAuthenticated()` check inside the handler, not gated by
+      isLoggedIn, since the route has to stay public). Verified against local mongod: 401
+      signed-out write, 200 signed-in with correct myStatus distribution, upsert then update,
+      400 on bad status, 404 on unknown spot, vote clears on visited -> want downgrade.
 - [ ] **4, Votes.** `POST /spots/:id/vote` behind `hasVisited`; tallies on the detail route.
 - [ ] **5, Reviews.** `routes/reviews.js` is written but **not mounted**, currently dead code.
       Mount at `/spots/:id/reviews` and verify. 37 seeded reviews are waiting for it.

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Spot = require("../models/spot");
+const SpotEntry = require("../models/spotEntry");
 const ExpressError = require("../utils/ExpressError");
 const { isLoggedIn, isAdmin, findSpot } = require("../middleware");
 
@@ -9,15 +10,57 @@ const { isLoggedIn, isAdmin, findSpot } = require("../middleware");
 // ours, and there's nothing private about them.
 // ---------------------------------------------------------------------------
 
+// Not gated by isLoggedIn: this route has to serve signed-out visitors too. So the
+// authenticated/anonymous branch is a plain `if` on req.isAuthenticated() here, rather than
+// a middleware that would throw 401 on exactly the requests this route needs to allow.
 router.get('/', async (req, res) => {
   const spots = await Spot.find({});
-  res.json(spots);
+
+  if (!req.isAuthenticated()) {
+    return res.json(spots);
+  }
+
+  // One query for every entry this user has, rather than one per spot. Keyed by spot id so
+  // the map below is a lookup, not a nested query.
+  const entries = await SpotEntry.find({ user: req.user._id }, 'spot status');
+  const statusBySpot = new Map(entries.map((e) => [e.spot.toString(), e.status]));
+
+  const withStatus = spots.map((spot) => {
+    const obj = spot.toObject();
+    obj.myStatus = statusBySpot.get(spot._id.toString()) ?? null;
+    return obj;
+  });
+  res.json(withStatus);
 });
 
 // findSpot loads the spot into req.spot and throws a 404 if the id matches
 // nothing, so every handler below can assume req.spot exists.
 router.get('/:id', findSpot, async (req, res) => {
   res.json(req.spot);
+});
+
+// Sets the toVisit/visited state for the signed-in user on this spot. Upsert because the
+// first status a user ever sets on a spot has no existing SpotEntry to update — and upsert
+// (not findOne then create) is what lets the unique index, not a race between two concurrent
+// requests, decide who wins. See the index comment in models/spotEntry.js.
+router.put('/:id/status', isLoggedIn, findSpot, async (req, res) => {
+  const { status } = req.body;
+  if (!['want', 'visited'].includes(status)) {
+    throw new ExpressError("status must be 'want' or 'visited'", 400);
+  }
+
+  const update = { status };
+  // Downgrading out of 'visited' has to clear any vote by hand: the pre('validate') hook in
+  // spotEntry.js only runs on .save(), not on findOneAndUpdate, so nothing else will catch a
+  // stale vote sitting on a 'want' entry.
+  if (status === 'want') update.vote = null;
+
+  const entry = await SpotEntry.findOneAndUpdate(
+    { user: req.user._id, spot: req.spot._id },
+    { $set: update },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  res.json(entry);
 });
 
 // ---------------------------------------------------------------------------
