@@ -1,9 +1,8 @@
-const express = require("express");
-// mergeParams: this router is mounted at /spots/:id/reviews, so :id belongs to the parent.
+const express = require('express');
 const router = express.Router({ mergeParams: true });
-const Review = require("../models/review");
-const ExpressError = require("../utils/ExpressError");
-const { isLoggedIn, findSpot, hasVisited, isReviewAuthor } = require("../middleware");
+const Review = require('../models/review');
+const ExpressError = require('../utils/ExpressError');
+const { isLoggedIn, findSpot, hasVisited, isReviewAuthor } = require('../middleware');
 
 router.get('/', findSpot, async (req, res) => {
     const reviews = await Review.find({ spot: req.params.id })
@@ -30,7 +29,10 @@ router.post('/', isLoggedIn, findSpot, hasVisited, async (req, res) => {
         // 11000 = the { spot, author } unique index. One review per person per spot: a repeat
         // visitor edits theirs rather than stacking up duplicates and skewing the average.
         if (err.code === 11000) {
-            throw new ExpressError('You have already reviewed this spot — edit that review instead', 409);
+            throw new ExpressError(
+                'You have already reviewed this spot, edit that review instead',
+                409,
+            );
         }
         throw err;
     }

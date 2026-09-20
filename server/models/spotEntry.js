@@ -16,11 +16,11 @@ const LogSchema = new Schema({
     }],
 }, { timestamps: true });
 
-// ONE document per (user, spot) pair — this is the toVisit / visited mechanic.
+// ONE document per (user, spot) pair — this is the want / visited mechanic.
 //
 // Deliberately not two arrays on the User document:
 //   - a spot can't be in both lists at once, by construction: `status` is a single field, so
-//     moving a spot from toVisit to visited is one field update, not a delete-then-insert
+//     moving a spot from want to visited is one field update, not a delete-then-insert
 //     across two arrays that can drift out of sync
 //   - "who has visited this spot?" (needed for the spot page's counts) stays an indexed query
 //     instead of a scan across every user document
@@ -59,7 +59,7 @@ const SpotEntrySchema = new Schema({
 // findOneAndUpdate with upsert so the database, not application logic, resolves the race.
 SpotEntrySchema.index({ user: 1, spot: 1 }, { unique: true });
 SpotEntrySchema.index({ spot: 1, status: 1 }); // spot page: visit counts + vote tallies
-SpotEntrySchema.index({ user: 1, status: 1 }); // logbook: "my toVisit list" / "my visited list"
+SpotEntrySchema.index({ user: 1, status: 1 }); // logbook: "my want list" / "my visited list"
 
 // The product rule is "you can only vote on somewhere you've actually been." The hasVisited
 // route middleware is what enforces it for real, returning a clean 403.

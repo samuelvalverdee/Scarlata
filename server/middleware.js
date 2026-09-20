@@ -1,5 +1,6 @@
 const Spot = require('./models/spot');
 const SpotEntry = require('./models/spotEntry');
+const Review = require('./models/review');
 const ExpressError = require('./utils/ExpressError');
 
 module.exports.isLoggedIn = (req, res, next) => {
@@ -39,7 +40,10 @@ module.exports.hasVisited = async (req, res, next) => {
         status: 'visited',
     });
     if (!entry) {
-        throw new ExpressError('Mark this spot as visited before you can rate or review it', 403);
+        throw new ExpressError(
+            'Mark this spot as visited before you can rate or review it',
+            403,
+        );
     }
     req.spotEntry = entry;
     next();
@@ -48,8 +52,12 @@ module.exports.hasVisited = async (req, res, next) => {
 // Reviews *are* user-owned, so the course's ownership check still applies here — just scoped
 // to reviews instead of spots. Admins can remove any review (moderation).
 module.exports.isReviewAuthor = async (req, res, next) => {
-    const Review = require('./models/review');
-    const review = await Review.findById(req.params.reviewId);
+    // Scoped to the spot in the URL too, so /spots/A/reviews/<a review of B> is a 404 rather
+    // than quietly editing a review under the wrong spot's path.
+    const review = await Review.findOne({
+        _id: req.params.reviewId,
+        spot: req.params.id,
+    });
     if (!review) {
         throw new ExpressError('Review not found', 404);
     }

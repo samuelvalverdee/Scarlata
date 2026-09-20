@@ -11,6 +11,9 @@ const ExpressError = require('./utils/ExpressError');
 const normalizeError = require('./utils/normalizeError');
 const authRouter = require('./routes/auth');
 const spotsRouter = require('./routes/spots');
+const reviewsRouter = require('./routes/reviews');
+const logsRouter = require('./routes/logs');
+const meRouter = require('./routes/me');
 
 const app = express();
 
@@ -54,6 +57,9 @@ app.get('/', (req, res) => {
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/spots', spotsRouter);
+app.use('/api/v1/spots/:id/reviews', reviewsRouter);
+app.use('/api/v1/spots/:id/logs', logsRouter);
+app.use('/api/v1/me', meRouter);
 
 app.use((req, res, next) => {
     next(new ExpressError('Page not found', 404));

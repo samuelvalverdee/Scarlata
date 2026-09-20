@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b7c1e6a2-4f3d-4a7e-9c21-5f0a2d8e1a10",
     "name": "Scarlata API (v1)",
-    "description": "Scarlata - Costa Rica outdoor-spot tracker. Local dev API.\n\nWHAT THIS API IS SHAPED LIKE\n- Auth is SESSION COOKIES, not tokens. There is no Authorization header anywhere in this API.\n  Run 'Auth > 2. Login' once and Postman carries the cookie automatically for localhost:3001.\n  If requests suddenly start returning 401, the session expired (24h) - just log in again.\n- Every request that sends a body sends JSON, with Content-Type: application/json.\n- Reads are public. Writes to /spots are ADMIN ONLY - users do not create spots.\n\nVARIABLES\n- baseUrl   comes from the 'Scarlata - Local' environment\n- spotId    filled in for you by 'List all spots' and 'Create spot', so you should never need\n            to paste an id by hand\n\nSUGGESTED FIRST RUN\n  1. Auth > 1. Register                 you are now a normal user\n  2. Spots - public > List all spots\n  3. Error cases > 403                  proves users cannot create spots\n  4. Promote yourself to admin          see the 'Create spot' description, then Login again\n  5. Spots - admin only > Create spot\n\nOnly endpoints that EXIST TODAY are in here. toVisit/visited, votes, reviews, visit logs and the\nprogress endpoints are Parts 3-7 in TODO.md, and get added to this collection as they land.",
+    "description": "Scarlata - Costa Rica outdoor-spot tracker. Local dev API.\n\nWHAT THIS API IS SHAPED LIKE\n- Auth is SESSION COOKIES, not tokens. There is no Authorization header anywhere in this API.\n  Run 'Auth > 2. Login' once and Postman carries the cookie automatically for localhost:3001.\n  If requests suddenly start returning 401, the session expired (24h) - just log in again.\n- Every request that sends a body sends JSON, with Content-Type: application/json.\n- Reads are public. Writes to /spots are ADMIN ONLY - users do not create spots.\n- Everything under /spots/:id uses {{spotId}}, which 'List all spots' fills in.\n\nVARIABLES\n- baseUrl   comes from the 'Scarlata - Local' environment\n- spotId    filled in for you by 'List all spots' and 'Create spot', so you should never need\n            to paste an id by hand\n\nSUGGESTED FIRST RUN\n  1. Auth > 1. Register                 you are now a normal user\n  2. Spots - public > List all spots\n  3. Error cases > 403                  proves users cannot create spots\n  4. Promote yourself to admin          see the 'Create spot' description, then Login again\n  5. Spots - admin only > Create spot\n\nOnly endpoints that EXIST TODAY are in here. Users interact with spots (status, votes, reviews,\nvisit logs) and read their own progress under 'My logbook'; admins curate spots and the gallery.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -156,17 +156,17 @@
                   "key": "activityType",
                   "value": "waterfall",
                   "disabled": true,
-                  "description": "NOT IMPLEMENTED YET - Part 3 in TODO.md. Enabling this does nothing today."
+                  "description": "NOT IMPLEMENTED YET. Enabling this does nothing today."
                 },
                 {
                   "key": "province",
                   "value": "Alajuela",
                   "disabled": true,
-                  "description": "NOT IMPLEMENTED YET - Part 3 in TODO.md. Enabling this does nothing today."
+                  "description": "NOT IMPLEMENTED YET. Enabling this does nothing today."
                 }
               ]
             },
-            "description": "Every spot on the map. PUBLIC - works signed out.\n\nNO BODY, NO AUTH, no headers.\n\nQUERY PARAMS: none work yet. The two below are disabled placeholders for the filtering\nthat lands in Part 3 - leave them off for now.\n\nSuccess: 200 OK, a JSON array. It will be empty until the seed script exists (Part 2) or\n         you create a spot as an admin.\n\nThis request saves the first spot's id into {{spotId}}, so the requests below just work."
+            "description": "Every spot on the map. PUBLIC - works signed out.\n\nNO BODY, NO AUTH, no headers.\n\nQUERY PARAMS: none work yet. The two below are disabled placeholders for the filtering\nthat lands later - leave them off for now.\n\nSuccess: 200 OK, a JSON array. It will be empty until you run the seed script (npm run seed) or\n         create a spot as an admin.\n\nThis request saves the first spot's id into {{spotId}}, so the requests below just work."
           },
           "response": [],
           "event": [
@@ -182,7 +182,7 @@
                   "  pm.collectionVariables.set('spotId', spots[0]._id);",
                   "  console.log('Saved spotId =', spots[0]._id, '(' + spots[0].name + ')');",
                   "} else {",
-                  "  console.log('No spots yet. Run the seed script (Part 2), or Create spot as an admin.');",
+                  "  console.log('No spots yet. Run the seed script (npm run seed), or Create spot as an admin.');",
                   "}"
                 ]
               }
@@ -317,6 +317,571 @@
       ]
     },
     {
+      "name": "Spots - my activity (signed in)",
+      "description": "What a signed-in user does with a spot: mark it, then vote on it. Voting needs a visit first.\nStatus values are 'want' (the to-visit list) and 'visited'. Login first.",
+      "item": [
+        {
+          "name": "Mark as visited",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "status"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"visited\"\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "description": "Puts this spot on your visited list. Creates your entry if none exists, otherwise updates it.\n\nBODY: status = 'want' | 'visited'\n\nSuccess: 200, your entry\nErrors:  401 signed out, 400 bad status, 404 unknown spot"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status is visited\", () => pm.expect(pm.response.json().status).to.eql(\"visited\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark as want to visit",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "status"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"want\"\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "description": "Puts this spot on your to-visit list. Moving it out of 'visited' also clears any vote you cast,\nsince a vote is only allowed on a visited spot."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"vote cleared\", () => pm.expect(pm.response.json().vote).to.eql(null));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vote up",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/vote",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "vote"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vote\": 1\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "description": "Casts (or changes) your vote. One vote per person per spot; posting again replaces it.\n\nBODY: vote = 1 (up) | -1 (down)\n\nSetup: mark the spot visited first.\nSuccess: 200, your entry\nErrors:  401 signed out, 403 not visited yet, 400 vote is not 1 or -1, 404 unknown spot"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"vote is 1\", () => pm.expect(pm.response.json().vote).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vote down",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/vote",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "vote"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vote\": -1\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "description": "Same as Vote up, with -1."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"vote is -1\", () => pm.expect(pm.response.json().vote).to.eql(-1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove vote",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/vote",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "vote"]
+            },
+            "description": "Clears your vote and leaves the visit itself alone. Tallies on 'Get one spot' (votes.up / votes.down) update."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"vote is null\", () => pm.expect(pm.response.json().vote).to.eql(null));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "description": "Reviews on a spot. Reading is public; writing needs a visit. One review per person per spot.\nMounted at /spots/:id/reviews.",
+      "item": [
+        {
+          "name": "List reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "reviews"]
+            },
+            "description": "PUBLIC. Newest first, author populated with username only."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"returns an array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create review",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "reviews"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"body\": \"Muy lindo, vale la pena madrugar.\"\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "description": "BODY: rating (1-5), body (max 2000 characters)\n\nSetup: signed in, and the spot marked visited.\nSuccess: 201. Saves the review id into {{reviewId}}.\nErrors:  401 signed out, 403 not visited, 409 you already reviewed this spot, 400 validation"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"reviewId\", pm.response.json()._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit review",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/reviews/{{reviewId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "reviews", "{{reviewId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "description": "Partial update, either field. Only the author can edit (an admin can too, for moderation).\nErrors: 401, 403 not yours, 404 review not found under this spot, 400 validation"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete review",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/reviews/{{reviewId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "reviews", "{{reviewId}}"]
+            },
+            "description": "Author or admin. Success: 204, no body."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 No Content\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Visit logs",
+      "description": "Your private record of each trip to a spot, kept on your entry. Only you can see or change your logs.\nEverything except the read needs a visit. Mounted at /spots/:id/logs.",
+      "item": [
+        {
+          "name": "List my logs for this spot",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/logs",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "logs"]
+            },
+            "description": "Your logs for this spot, or an empty array if you have none (including when you have only marked it want)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"returns an array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add a log",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/logs",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "logs"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activitiesDone\": [\n    \"hiking\"\n  ],\n  \"notes\": \"Salimos a las 6am, sin lluvia.\",\n  \"photos\": [\n    {\n      \"url\": \"https://example.com/photo.jpg\"\n    }\n  ]\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "description": "BODY (all optional)\n  visitedAt       ISO date, defaults to now\n  activitiesDone  list drawn from THIS spot's activityTypes\n  notes           free text\n  photos          [{ url }], http(s) URLs only until uploads land\n\nSetup: spot marked visited. Saves the log id into {{logId}}.\nSuccess: 201, the new log\nErrors:  401, 403 not visited, 400 activity not offered by the spot / bad photo URL"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"logId\", pm.response.json()._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit a log",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/logs/{{logId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "logs", "{{logId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Actualizado.\"\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "description": "Partial: only the fields you send change. Success: 200. Errors: 404 no such log on your entry."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete a log",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/logs/{{logId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "logs", "{{logId}}"]
+            },
+            "description": "Success: 204."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 No Content\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Gallery - admin only",
+      "description": "Promoting standout visit-log photos into a spot's curated gallery. Needs role='admin'.",
+      "item": [
+        {
+          "name": "List user photos for a spot",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/log-photos",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "log-photos"]
+            },
+            "description": "Every photo users attached to their logs for this spot, with the owner. Saves the first entryId\ninto {{entryId}} so Promote just works (copy the log id and url from the response)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "if (p.length) pm.collectionVariables.set(\"entryId\", p[0].entryId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Promote a photo to the gallery",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/gallery",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "gallery"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"entryId\": \"{{entryId}}\",\n  \"logId\": \"{{logId}}\",\n  \"url\": \"https://example.com/photo.jpg\"\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "description": "BODY: entryId, logId, url (all from 'List user photos for a spot'). The photo is looked up on the\nstored log, and the credit is set to its owner.\n\nSuccess: 201, the new gallery image\nErrors:  403 not admin, 404 no such photo, 409 already in the gallery"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove a gallery image",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/gallery?url=https://example.com/photo.jpg",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "gallery"],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "https://example.com/photo.jpg",
+                  "description": "The gallery image to remove."
+                }
+              ]
+            },
+            "description": "Gallery images have no id of their own, so the image is named by url in the query string.\nSuccess: 204. Errors: 403, 404."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 No Content\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "My logbook",
+      "description": "The signed-in user's own view: their lists and their progress. Read-only. Mounted at /me.",
+      "item": [
+        {
+          "name": "My lists",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/lists",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "lists"]
+            },
+            "description": "{ want: [...], visited: [...] }. Each item: { spot, vote, logs, updatedAt }, most recently touched first."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const l = pm.response.json();",
+                  "pm.test(\"has both lists\", () => { pm.expect(l.want).to.be.an(\"array\"); pm.expect(l.visited).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My progress",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "progress"]
+            },
+            "description": "Visited / total overall, per province and per activity type. A spot with several activities counts\nonce toward each, so byActivity adds up to more than the overall total."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const g = pm.response.json();",
+                  "pm.test(\"visited never exceeds total\", () => pm.expect(g.visited).to.be.at.most(g.total));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Error cases (what good failures look like)",
       "description": "Not busywork - these are exactly the behaviours Parts 1 and 1.5 were built to get right.\nRun them to see the difference between 401 and 403, and to see validation errors that name\nthe field that actually failed.",
       "item": [
@@ -363,7 +928,7 @@
               "raw": "{\n  \"name\": \"User submitted spot\",\n  \"province\": \"Cartago\",\n  \"difficulty\": \"easy\",\n  \"location\": { \"coordinates\": [-83.85, 9.98] }\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "description": "SETUP: run Register, or Login as an account whose role is still 'user'.\n\nThis is the entire point of the Part 1 correction. Users explore, visit, vote and review\nspots - they do not create them, because a user-submitted spot cannot be verified as a real\nand reachable place."
+            "description": "SETUP: run Register, or Login as an account whose role is still 'user'.\n\nThis is the entire point of the ownership correction. Users explore, visit, vote and review\nspots - they do not create them, because a user-submitted spot cannot be verified as a real\nand reachable place."
           },
           "response": [],
           "event": [
@@ -391,7 +956,7 @@
               "raw": "{\n  \"name\": \"Bad Data\",\n  \"province\": \"Atlantis\",\n  \"difficulty\": \"trivial\",\n  \"location\": { \"coordinates\": [-83.85, 9.98] }\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "description": "SETUP: must be signed in AS AN ADMIN, otherwise you get 403 before validation ever runs.\n\nTwo bad enum values at once. The response names BOTH in a 'details' object keyed by field,\nwhich is the shape react-hook-form wants so it can attach each message to the right input.\n\nThis used to return 500. Fixed in Part 1.5 (utils/normalizeError.js)."
+            "description": "SETUP: must be signed in AS AN ADMIN, otherwise you get 403 before validation ever runs.\n\nTwo bad enum values at once. The response names BOTH in a 'details' object keyed by field,\nwhich is the shape react-hook-form wants so it can attach each message to the right input.\n\nThis used to return 500. Fixed in utils/normalizeError.js."
           },
           "response": [],
           "event": [
@@ -472,7 +1037,7 @@
               "raw": "{\n  \"username\": \"samuel-again\",\n  \"email\": \"samuel@example.com\",\n  \"password\": \"changeme123\"\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "description": "SETUP: run '1. Register' first so the email exists.\n\nReturns a clean 'That email is already taken'. It deliberately no longer echoes the raw\nMongoDB error, which used to leak the database name, collection name and index name straight\nto the client. Fixed in Part 1.5."
+            "description": "SETUP: run '1. Register' first so the email exists.\n\nReturns a clean 'That email is already taken'. It deliberately no longer echoes the raw\nMongoDB error, which used to leak the database name, collection name and index name straight\nto the client. Fixed in utils/normalizeError.js."
           },
           "response": [],
           "event": [
@@ -502,6 +1067,21 @@
       "key": "spotId",
       "value": "",
       "description": "Auto-filled by 'List all spots' and 'Create spot'. No need to paste ids by hand."
+    },
+    {
+      "key": "reviewId",
+      "value": "",
+      "description": "Auto-filled by 'Create review'."
+    },
+    {
+      "key": "logId",
+      "value": "",
+      "description": "Auto-filled by 'Add a log'."
+    },
+    {
+      "key": "entryId",
+      "value": "",
+      "description": "Auto-filled by 'List user photos for a spot'."
     },
     {
       "key": "currentRole",

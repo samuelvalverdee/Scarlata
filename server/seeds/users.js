@@ -1,6 +1,6 @@
 // Fake accounts, development only. They exist so there is something to log in as, and so the
 // map has plausible engagement (visits, votes, reviews) before any real user shows up.
-// Otherwise every tally on every spot reads zero and the views built in Phases 3-7 can't be
+// Otherwise every tally on every spot reads zero and the views built on top of them can't be
 // told apart from broken ones.
 //
 // Passwords are plaintext HERE and nowhere else: seeds/index.js hands each one to

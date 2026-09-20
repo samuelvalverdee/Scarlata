@@ -1,9 +1,9 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const Spot = require("../models/spot");
-const SpotEntry = require("../models/spotEntry");
-const ExpressError = require("../utils/ExpressError");
-const { isLoggedIn, isAdmin, findSpot } = require("../middleware");
+const Spot = require('../models/spot');
+const SpotEntry = require('../models/spotEntry');
+const ExpressError = require('../utils/ExpressError');
+const { isLoggedIn, isAdmin, findSpot, hasVisited } = require('../middleware');
 
 // ---------------------------------------------------------------------------
 // Public reads. Anyone can browse the map, signed in or not — the spots are
@@ -14,53 +14,71 @@ const { isLoggedIn, isAdmin, findSpot } = require("../middleware");
 // authenticated/anonymous branch is a plain `if` on req.isAuthenticated() here, rather than
 // a middleware that would throw 401 on exactly the requests this route needs to allow.
 router.get('/', async (req, res) => {
-  const spots = await Spot.find({});
+    const spots = await Spot.find({});
 
-  if (!req.isAuthenticated()) {
-    return res.json(spots);
-  }
+    if (!req.isAuthenticated()) {
+        return res.json(spots);
+    }
 
-  // One query for every entry this user has, rather than one per spot. Keyed by spot id so
-  // the map below is a lookup, not a nested query.
-  const entries = await SpotEntry.find({ user: req.user._id }, 'spot status');
-  const statusBySpot = new Map(entries.map((e) => [e.spot.toString(), e.status]));
+    // One query for every entry this user has, rather than one per spot. Keyed by spot id so
+    // the map below is a lookup, not a nested query.
+    const entries = await SpotEntry.find({ user: req.user._id }, 'spot status');
+    const statusBySpot = new Map(
+        entries.map((e) => [e.spot.toString(), e.status]),
+    );
 
-  const withStatus = spots.map((spot) => {
-    const obj = spot.toObject();
-    obj.myStatus = statusBySpot.get(spot._id.toString()) ?? null;
-    return obj;
-  });
-  res.json(withStatus);
+    const withStatus = spots.map((spot) => {
+        const obj = spot.toObject();
+        obj.myStatus = statusBySpot.get(spot._id.toString()) ?? null;
+        return obj;
+    });
+    res.json(withStatus);
 });
 
 // findSpot loads the spot into req.spot and throws a 404 if the id matches
 // nothing, so every handler below can assume req.spot exists.
 router.get('/:id', findSpot, async (req, res) => {
-  res.json(req.spot);
+    // Not a join: we already have req.spot._id, so this is a filter + group on the child
+    // collection's foreign key, one round trip, no $lookup needed. See TODO.md's "Known debt"
+    // note on why this is aggregated on read instead of denormalized onto Spot.
+    const [tally] = await SpotEntry.aggregate([
+        { $match: { spot: req.spot._id, vote: { $ne: null } } },
+        {
+            $group: {
+                _id: null,
+                up: { $sum: { $cond: [{ $eq: ['$vote', 1] }, 1, 0] } },
+                down: { $sum: { $cond: [{ $eq: ['$vote', -1] }, 1, 0] } },
+            },
+        },
+    ]);
+
+    const obj = req.spot.toObject();
+    obj.votes = { up: tally?.up ?? 0, down: tally?.down ?? 0 };
+    res.json(obj);
 });
 
-// Sets the toVisit/visited state for the signed-in user on this spot. Upsert because the
+// Sets the want/visited state for the signed-in user on this spot. Upsert because the
 // first status a user ever sets on a spot has no existing SpotEntry to update — and upsert
 // (not findOne then create) is what lets the unique index, not a race between two concurrent
 // requests, decide who wins. See the index comment in models/spotEntry.js.
 router.put('/:id/status', isLoggedIn, findSpot, async (req, res) => {
-  const { status } = req.body;
-  if (!['want', 'visited'].includes(status)) {
-    throw new ExpressError("status must be 'want' or 'visited'", 400);
-  }
+    const { status } = req.body;
+    if (!['want', 'visited'].includes(status)) {
+        throw new ExpressError("status must be 'want' or 'visited'", 400);
+    }
 
-  const update = { status };
-  // Downgrading out of 'visited' has to clear any vote by hand: the pre('validate') hook in
-  // spotEntry.js only runs on .save(), not on findOneAndUpdate, so nothing else will catch a
-  // stale vote sitting on a 'want' entry.
-  if (status === 'want') update.vote = null;
+    const update = { status };
+    // Downgrading out of 'visited' has to clear any vote by hand: the pre('validate') hook in
+    // spotEntry.js only runs on .save(), not on findOneAndUpdate, so nothing else will catch a
+    // stale vote sitting on a 'want' entry.
+    if (status === 'want') update.vote = null;
 
-  const entry = await SpotEntry.findOneAndUpdate(
-    { user: req.user._id, spot: req.spot._id },
-    { $set: update },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-  res.json(entry);
+    const entry = await SpotEntry.findOneAndUpdate(
+        { user: req.user._id, spot: req.spot._id },
+        { $set: update },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+    res.json(entry);
 });
 
 // ---------------------------------------------------------------------------
@@ -71,31 +89,134 @@ router.put('/:id/status', isLoggedIn, findSpot, async (req, res) => {
 // ---------------------------------------------------------------------------
 
 router.post('/', isLoggedIn, isAdmin, async (req, res) => {
-  const spot = new Spot({ ...(req.body.spot ?? req.body), addedBy: req.user._id });
-  await spot.save();
-  res.status(201).json(spot);
+    const spot = new Spot({
+        ...(req.body.spot ?? req.body),
+        addedBy: req.user._id,
+    });
+    await spot.save();
+    res.status(201).json(spot);
 });
 
 router.put('/:id', isLoggedIn, isAdmin, findSpot, async (req, res) => {
-  const payload = { ...(req.body.spot ?? req.body) };
-  delete payload.addedBy; // record of who added it, not something a request can rewrite
+    const payload = { ...(req.body.spot ?? req.body) };
+    delete payload.addedBy; // record of who added it, not something a request can rewrite
 
-  // set() + save() rather than findByIdAndUpdate: save() runs the schema's
-  // validators (province enum, activityTypes enum, required coordinates) on the
-  // whole document. findByIdAndUpdate skips them unless asked, and even then
-  // only checks the fields being changed.
-  req.spot.set(payload);
-  await req.spot.save();
-  res.json(req.spot);
+    // set() + save() rather than findByIdAndUpdate: save() runs the schema's
+    // validators (province enum, activityTypes enum, required coordinates) on the
+    // whole document. findByIdAndUpdate skips them unless asked, and even then
+    // only checks the fields being changed.
+    req.spot.set(payload);
+    await req.spot.save();
+    res.json(req.spot);
 });
 
 router.delete('/:id', isLoggedIn, isAdmin, async (req, res) => {
-  // findOneAndDelete, not findByIdAndDelete: the cascade hook in models/spot.js
-  // that cleans up orphaned entries and reviews is registered on this exact
-  // query name.
-  const spot = await Spot.findOneAndDelete({ _id: req.params.id });
-  if (!spot) throw new ExpressError('Spot not found', 404);
-  res.status(204).send();
+    // findOneAndDelete, not findByIdAndDelete: the cascade hook in models/spot.js
+    // that cleans up orphaned entries and reviews is registered on this exact
+    // query name.
+    const spot = await Spot.findOneAndDelete({ _id: req.params.id });
+    if (!spot) throw new ExpressError('Spot not found', 404);
+    res.status(204).send();
 });
+
+router.post('/:id/vote', isLoggedIn, findSpot, hasVisited, async (req, res) => {
+    const { vote } = req.body;
+    if (![1, -1].includes(vote)) {
+        throw new ExpressError('Vote must be 1 or -1', 400);
+    }
+
+    // req.spotEntry was loaded by hasVisited, already scoped to this user + this spot. set() +
+    // save() (not findOneAndUpdate) so the pre('validate') hook in spotEntry.js actually runs.
+    req.spotEntry.set({ vote });
+    await req.spotEntry.save();
+    res.json(req.spotEntry);
+});
+
+// Undoes a vote (the client's "click the active vote again" action), leaving the visit itself
+// intact. Same hasVisited gate as casting one, since the entry has to exist to clear it anyway.
+router.delete(
+    '/:id/vote',
+    isLoggedIn,
+    findSpot,
+    hasVisited,
+    async (req, res) => {
+        req.spotEntry.set({ vote: null });
+        await req.spotEntry.save();
+        res.json(req.spotEntry);
+    },
+);
+
+// ---------------------------------------------------------------------------
+// Gallery curation (admin). Photos start life on a user's visit log; an admin promotes the
+// standouts into the spot's curated gallery, crediting the photographer.
+// ---------------------------------------------------------------------------
+
+// Every photo users have attached to their logs for this spot: the pool an admin picks from.
+router.get(
+    '/:id/log-photos',
+    isLoggedIn,
+    isAdmin,
+    findSpot,
+    async (req, res) => {
+        const entries = await SpotEntry.find(
+            { spot: req.spot._id, 'logs.photos.0': { $exists: true } },
+            'user logs',
+        ).populate('user', 'username');
+
+        const photos = entries.flatMap((entry) =>
+            entry.logs.flatMap((log) =>
+                log.photos.map((photo) => ({
+                    entryId: entry._id,
+                    logId: log._id,
+                    user: entry.user,
+                    url: photo.url,
+                    filename: photo.filename,
+                })),
+            ),
+        );
+        res.json(photos);
+    },
+);
+
+// Body: { entryId, logId, url }. The photo is looked up on the stored log rather than taken
+// from the request, so an admin can only promote something a user really uploaded, and the
+// credit always points at the real owner instead of whatever the client claims.
+router.post('/:id/gallery', isLoggedIn, isAdmin, findSpot, async (req, res) => {
+    const { entryId, logId, url } = req.body;
+
+    const entry = await SpotEntry.findOne({ _id: entryId, spot: req.spot._id });
+    const photo = entry?.logs.id(logId)?.photos.find((p) => p.url === url);
+    if (!photo) throw new ExpressError('No such photo on that visit log', 404);
+
+    if (req.spot.images.some((image) => image.url === photo.url)) {
+        throw new ExpressError('That photo is already in the gallery', 409);
+    }
+
+    req.spot.images.push({
+        url: photo.url,
+        filename: photo.filename,
+        credit: entry.user,
+    });
+    await req.spot.save();
+    res.status(201).json(req.spot.images.at(-1));
+});
+
+// Gallery images have no _id of their own (see ImageSchema), so they are identified by url, in
+// the query string because DELETE bodies are unreliable across clients and proxies.
+router.delete(
+    '/:id/gallery',
+    isLoggedIn,
+    isAdmin,
+    findSpot,
+    async (req, res) => {
+        const { url } = req.query;
+        const image = req.spot.images.find((i) => i.url === url);
+        if (!image) throw new ExpressError('No such image in the gallery', 404);
+
+        req.spot.images.pull(image);
+        await req.spot.save();
+        res.status(204).send();
+    },
+);
 
 module.exports = router;
