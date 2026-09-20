@@ -12,7 +12,7 @@ personal record of the ground you've covered, and a nudge to keep covering more.
 ## Tech stack
 
 - **Backend:** Node.js, Express (JSON API only, no view engine), MongoDB + Mongoose
-- **Auth:** Passport (local strategy) + express-session, once Phase 3 lands
+- **Auth:** Passport (local strategy) + express-session (session cookies)
 - **Frontend:** React + Vite, Tailwind CSS, shadcn/ui, React Router, TanStack Query
 - **Images:** Multer + Cloudinary (planned)
 - **Maps:** Mapbox SDK for geocoding; rendering library still to be decided
@@ -21,7 +21,7 @@ personal record of the ground you've covered, and a nudge to keep covering more.
 
 ```
 Scarlata/
-  server/     Express API (scaffolded — see below)
+  server/     Express API (spots, votes, reviews, visit logs, logbook; see PROJECT_PLAN.md)
   client/     Vite + React app (not yet scaffolded)
   PROJECT_PLAN.md
 ```
@@ -31,5 +31,11 @@ Scarlata/
 ```
 cd server
 npm install
-npm run dev
+cp .env.example .env      # then fill in MONGO_URI, SESSION_SECRET, CLIENT_ORIGIN
+npm run dev               # needs a local MongoDB; serves http://localhost:3001/api/v1
+npm run seed -- --with-activity   # 34 curated spots, fake users, sample visits/votes/reviews
 ```
+
+Spots are curated, not user-submitted. The seeded `samuel@scarlata.test` account is an admin;
+`npm run seed -- --admin <email>` promotes another. `server/postman/` has a request for every
+route.

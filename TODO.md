@@ -1,108 +1,142 @@
-# Scarlata, working to-do
+# Scarlata, backlog
 
 Scratch file for cross-session continuity. Not the plan; [PROJECT_PLAN.md](PROJECT_PLAN.md) is.
-Delete once the parts below are done and the plan doc is corrected.
+Project rules (git, content style) live in [CLAUDE.md](CLAUDE.md).
 
-## The correction in progress
+The backend feature set is finished. Spots are curated by us and users interact with them (see
+"Who owns a spot" in the plan). This file holds what comes next, the open decisions, and known debt.
 
-Phases 3-4 built spots on the course's YelpCamp ownership model: users create spots, `author` on
-the document, `isAuthor` guarding edits. **That is wrong for Scarlata.** Spots are curated by us
-(seed script + admin routes) because a user-submitted spot can't be verified as a real, reachable
-place, and the map's whole value is that every pin on it is real.
+## Status
 
-Users don't create spots. They *interact* with them: mark toVisit / visited, vote, review,
-photograph. Decisions taken:
+Everything in the plan's API section is built and was verified against a local mongod with the
+seeded data: status, vote, review and log gates (401 signed out, 403 not visited or not admin, 404,
+409 duplicate review or gallery photo, 400 schema validation), vote tallies on `GET /spots/:id`, and
+`/me/lists` plus `/me/progress` (cross-checked against direct collection counts). The Postman
+collection has a request for each route.
 
-- Spot writes: seed script **and** admin-gated routes (`role: 'admin'` on User).
-- Reviews require a visit, same as votes.
-- Photos live on the user's visit log; admins can promote standouts into the curated gallery.
-- Businesses are allowed as spots, not just natural features. For rafting the operator *is* the
-  access point, so excluding them would leave real activities unmappable.
+Status values are `want` and `visited` in the model, the routes and the API responses (`/me/lists`
+returns `{ want, visited }`).
 
-## House style
+Not built yet: request validation, hardening, image uploads, map/geocoding, spot filtering
+(`?activityType`, `?province` on `GET /spots`), and everything under `client/`.
 
-**No em dashes.** Anywhere: code comments, seed content, docs, commit messages. Repunctuate the
-sentence instead of substituting a lookalike character. A parenthetical break becomes commas or
-parentheses, an explanatory break becomes a colon, a hard clause turn becomes a new sentence.
-Check the result still parses as a sentence afterwards.
+## Next steps, in order
 
-Seeds, `db/connection.js` and `package.json` are clean. Roughly 108 remain in files committed
-before the rule existed: `PROJECT_PLAN.md` (62), the models/routes/utils (26), `README.md` (1).
-Sweep `PROJECT_PLAN.md` as part of Part 8 rather than as its own commit.
+1. **Commit and push the backend work, then a repo-wide Prettier pass in its own commit.**
+   - Prettier is not a dependency yet: add it as a devDependency with a `format` script, using the
+     existing `.prettierrc.json` (4 spaces, single quotes).
+   - `routes/spots.js`, `routes/reviews.js` and the newer files are already Prettier style;
+     `auth.js`, `models/user.js` and a few others are still 2 spaces and double quotes.
+   - Add the format commit to `.git-blame-ignore-revs` so blame stays useful.
+2. **Joi validation** (pulled forward from plan Phase 8). A `schemas.js` plus a `validate`
+   middleware, applied before the handlers.
+   - Schemas for: register and login, spot create (required fields) and spot update (all fields
+     optional), status, vote, review create and update, visit log create and update, gallery
+     promote, and the gallery delete query.
+   - Spot rules: `province`, `activityTypes` and `difficulty` drawn from the model's lists (import
+     them, don't copy them), coordinates as `[lng, lat]` inside a Costa Rica bounding box, positive
+     numbers for the specs. `images` and `addedBy` are rejected in the body: the gallery routes own
+     the first and the server owns the second.
+   - Log rule that needs the spot: `activitiesDone` must come from that spot's `activityTypes`, so
+     the schema is built per request from `req.spot`.
+   - Photos are `{ url }` only, http(s), with a length cap. Reject client-supplied `filename`
+     (see the Cloudinary item: it will become a `public_id` the server deletes by).
+   - Replace the hand-rolled checks in `routes/logs.js` (`logFields`) and the status and vote
+     checks in `routes/spots.js`. Keep the `req.body.spot ?? req.body` style unwrapping the routes
+     accept today.
+   - Errors: 400 with `details` keyed by field path, the same shape `normalizeError` already
+     returns for Mongoose. It only forwards the message today, so it needs to pass `details`
+     through for our own errors. Include Joi's error `type` per field so the Spanish frontend can
+     map it to its own copy instead of showing English text.
+   - Verify: every schema against the 34 seeded spots (they must all pass), plus a bad-input
+     request per route. Add those cases to Postman.
+3. **Cloudinary image uploads** (plan Phase 5). Multer plus `multer-storage-cloudinary`; the server
+   receives the file and only the returned `url` and `public_id` (`filename`) reach MongoDB.
+   - Config: Cloudinary keys in `.env` and `.env.example`, never sent to the client.
+   - Server-side limits: real MIME type (not just extension), `limits.fileSize` (about 5 MB), a max
+     number of files per request. Multer supports all three.
+   - Privacy: strip EXIF and GPS metadata. Users photograph real places, and phone photos carry
+     coordinates.
+   - Cleanup: deleting a log, or a photo from a log, must delete the Cloudinary asset, and so must a
+     failed DB save after a successful upload. See the debt entry on gallery copies before wiring
+     this.
+   - Frontend later: previews, per-file errors, progress, and resizing before upload on mobile.
+4. **The rest of Phase 8 hardening:** helmet, express-mongo-sanitize, sanitize-html, rate limiting
+   (auth and upload routes first).
+5. **Maps and filtering:** Mapbox geocoding server-side, `?activityType` and `?province` on
+   `GET /spots`.
+6. **Spanish content pass** (see the decision below), then the `client/` scaffold.
 
-## Parts
+## Open decisions
 
-- [x] **1, Ownership correction.** `routes/spots.js`: public reads, admin-gated writes, `author`
-      gone. Verified: 200 signed-out read, 401 signed-out write, 403 non-admin write, 201/200/204
-      as admin.
-- [x] **1.5, Honest error codes.** `utils/normalizeError.js`: Mongoose validation -> 400 with
-      per-field details, CastError -> 400, duplicate key -> 409. `routes/auth.js` register no
-      longer swallows errors into a local 400 that leaked raw driver text.
-- [x] **2, Seeds + an admin account.** `seeds/index.js` with four modes (plain, `--with-activity`,
-      `--admin <email>`, `--force`), 8 fake users, 34 curated spots covering all 7 provinces and
-      all 10 activity types. `npm run seed`. Verified against local mongod: schema validation
-      passes on all 34, the 2dsphere index answers the map query, vote aggregation returns
-      sensible tallies, and `--with-activity` is reproducible across runs.
-      Also fixed `db/connection.js`, whose default arg read `config.MONGO_URI` when
-      `dotenv.config()` returns `{ parsed, error }`, so the default was always undefined.
-- [x] **3, toVisit / visited.** `PUT /spots/:id/status` (isLoggedIn, findSpot, upsert via
-      findOneAndUpdate, clears `vote` on downgrade out of 'visited'), plus `myStatus` on
-      `GET /spots` (plain `req.isAuthenticated()` check inside the handler, not gated by
-      isLoggedIn, since the route has to stay public). Verified against local mongod: 401
-      signed-out write, 200 signed-in with correct myStatus distribution, upsert then update,
-      400 on bad status, 404 on unknown spot, vote clears on visited -> want downgrade.
-- [ ] **4, Votes.** `POST /spots/:id/vote` behind `hasVisited`; tallies on the detail route.
-- [ ] **5, Reviews.** `routes/reviews.js` is written but **not mounted**, currently dead code.
-      Mount at `/spots/:id/reviews` and verify. 37 seeded reviews are waiting for it.
-- [ ] **6, Visit logs + photos.** Writes into `SpotEntry.logs[]`; admin gallery-promotion route.
-- [ ] **7, Progress / logbook.** `GET /me/lists`, `GET /me/progress`, per-province and
-      per-activity completion counts. This is the motivation loop.
-- [ ] **8, Correct PROJECT_PLAN.md.** It still documents the wrong model: `POST /api/spots
-      (auth required)` in the routes sketch, `/spots/new` and `/spots/:id/edit` in the pages
-      sketch. Fix so the doc stops pulling us back toward user-created spots. Sweep its em
-      dashes in the same pass.
-
-## Open decisions, worth settling before the frontend
-
-- **Spanish.** Production language should be Spanish; everything seeded so far is English. The
-  decision worth making before content grows: does `description` become `{ es, en }`? Enum values
-  (`difficulty`, `activityTypes`) stay English keys and get translated in the frontend, never in
-  the database. Converting 34 hand-written entries later is real work.
-- **Images.** URLs now, uploads later. `ImageSchema` already carries both `url` and `filename`
-  (Cloudinary `public_id`), and that pairing is what makes the switch a non-migration: seeded
-  photos have a URL and no public_id, uploads have both. Gap: `credit` is an ObjectId ref to a
-  User, so an externally-licensed photo has nowhere to store attribution.
+- **Spanish and translations.** The app is Spanish-only in production; the seeded content is
+  English. Proposed approach, not yet confirmed:
+  - **One language in the database, no duplicated translations.** Curated spot content (`name`,
+    `description`) is stored in Spanish. Do not add `{ es, en }` unless English becomes a real
+    requirement; if it does, that is a migration then, not a cost now.
+  - **Enum values stay stable English keys** (`difficulty`, `activityTypes`, `bestTimeOfDay`, the
+    `want` and `visited` statuses) and the frontend maps them to Spanish labels from a dictionary.
+    Provinces are proper nouns already, so they need no mapping.
+  - **UI copy lives in the frontend** (a react-i18next resource file, or a plain constants map),
+    bundled with the app. It needs no server-side caching: the browser caches the bundle.
+  - **User-written content** (reviews, log notes) is stored as typed and never translated.
+  - **API error messages are developer-facing English.** The frontend shows its own Spanish text,
+    keyed by status and by the field and error `type` that Joi will return.
+  - Rewriting the 34 seeded descriptions and the seeded review and log text in Spanish is a
+    one-time job. Do it before the content grows, and keep the em dash rule in CLAUDE.md in mind.
+  - For sorting and search, use a Spanish collation and text index so accents and `ñ` behave.
+- **Images and attribution.** `ImageSchema` carries both `url` and `filename` (Cloudinary
+  `public_id`), so the switch to uploads is not a migration: seeded photos have a URL and no
+  `public_id`, uploads have both. Gap: `credit` is an ObjectId ref to a User, so an
+  externally-licensed photo has nowhere to store attribution.
 - **Spot data quality.** `grep -n "VERIFY:" server/seeds/spots.js`. What is flagged is only what
-  would make a pin *wrong*, not imprecise:
+  would make a pin wrong, not imprecise:
   - 7 park pins are polygon centroids rather than entrances. Corcovado is the one that matters,
     since Sirena vs La Leona is a different trip, not a different parking lot.
   - 2 rafting pins (Pacuare, Sarapiquí) are river nodes, not put-ins.
   - 3 contested provinces: Chirripó, Rincón de la Vieja, Río Celeste.
   - 2 spots whose access may have closed: Cerro Chato (private land), Volcán Turrialba (activity).
   - Lowest confidence entry: Cerro Pelado. OSM has two by that name.
+- **`ACTIVITY_TYPES` and `PROVINCES`** in `models/spot.js` are still a starting guess, to be refined.
+  All 10 activity types have at least one spot, so removing one has a data cost.
 
 ## Known debt
 
-- `ACTIVITY_TYPES` / `PROVINCES` in `models/spot.js` are still a guess, Samuel to refine.
-  All 10 activity types now have at least one spot, so removing one has a data cost.
-- Optional numeric specs in the seeds (`trailLengthKm`, `waterfallHeightM`, `maxOccupancy`,
-  elevation, duration) are indicative and deliberately **not** individually verified. They are
-  display detail for a frontend that doesn't exist yet. Don't promote them to trip-planning data
-  without a research pass. The file header is the only thing recording this.
-- No request validation yet (Joi, plan Phase 8). `normalizeError` is a safety net at the database
-  layer, not a substitute: it catches bad data late, with Mongoose's wording, not ours.
-- No rate limiting, helmet, or mongo-sanitize yet (plan Phase 8).
-- Image upload isn't wired (multer/cloudinary, plan Phase 5). `images[]` is empty on every seeded
-  spot on purpose: a fabricated photo URL is a broken image, which is worse than none.
-- Admin promotion is manual by design. `npm run seed -- --admin <email>` promotes without wiping;
-  no route grants the role.
-- Spot-level vote and visit tallies are aggregated on read. Fine at this scale; denormalize onto
-  Spot only if the map view actually gets slow.
+- **Deleting a log photo can break a gallery image.** Promoting a photo copies its `url` and
+  `filename` into the spot gallery. Once uploads exist, deleting the original log would delete the
+  Cloudinary asset the gallery copy still points at. Before wiring asset cleanup, either skip the
+  delete when the same `public_id` is in a gallery, or copy the asset to a new `public_id` on
+  promotion.
+- **Hand-rolled request validation.** The checks in `routes/logs.js` (activities, photo URLs) and
+  the status and vote checks in `routes/spots.js` are stopgaps. `normalizeError` is a safety net at
+  the database layer: it catches bad data late, with Mongoose's wording. Both go away with the
+  Joi step.
+- **Log photos are unmoderated URLs** until uploads land: user-supplied http(s) links, with no
+  check beyond the admin choosing which ones to promote into the gallery. Uploads narrow this
+  (allowed types, size limits) but do not replace admin review.
+- **Moving a spot back to `want` keeps its reviews and logs.** Downgrading from `visited` clears
+  the vote but keeps the visit logs and the review. Deliberate for now (nothing is lost if someone
+  taps the wrong button), but the spot page will show a review from someone whose status says they
+  haven't been. Decide when the frontend needs it.
+- **Formatting is uneven across the older files.** Tracked as step 1 above.
+- **No rate limiting, helmet or mongo-sanitize yet** (step 4).
+- **Vote tallies and progress are computed on read.** `GET /spots/:id` aggregates the votes, and
+  `/me/progress` is computed in JS from two flat queries. `byActivity` counts a multi-activity spot
+  once per activity, so its totals exceed the overall total by design. Fine at this scale;
+  denormalize onto Spot or move to a pipeline only if the map view or the logbook gets slow.
+- **Seeded numeric specs are indicative.** `trailLengthKm`, `waterfallHeightM`, `maxOccupancy`,
+  elevation and duration are deliberately not individually verified. They are display detail for a
+  frontend that doesn't exist yet. Don't promote them to trip-planning data without a research
+  pass. The header of `seeds/spots.js` is the only other place recording this.
+- **`images[]` is empty on every seeded spot on purpose.** A fabricated photo URL is a broken
+  image, which is worse than none.
+- **Admin promotion is manual by design.** `npm run seed -- --admin <email>` promotes without
+  wiping; no route grants the role.
 
 ## Running it
 
 ```
-cd server && npm install && npm run dev     # needs local MongoDB, port 3001
+cd server && npm install && npm run dev     # needs local MongoDB, port 3001, API under /api/v1
 npm run seed                                # users + spots
 npm run seed -- --with-activity             # plus fake visits, votes, reviews
 npm run seed -- --admin <email>             # promote one account, wipes nothing

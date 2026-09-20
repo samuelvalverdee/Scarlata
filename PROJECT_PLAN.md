@@ -27,7 +27,7 @@ spots often blend more than one activity, which shaped the schema below.
 
 ## Schema modeling: one Spot model, not one model per activity
 
-Reviews, images, location, difficulty, author, visit-logs — nearly every field is shared across a
+Reviews, images, location, difficulty, visit logs — nearly every field is shared across a
 waterfall, a hiking trail, and a camping spot. Separate models per activity type (`Waterfall`,
 `HikingTrail`, `CampingSpot`...) would duplicate that shared structure across N models and N sets
 of CRUD routes, and the map view (which needs every spot at once, regardless of type) would have
@@ -45,6 +45,25 @@ one type, `Spot.find({ activityTypes: { $in: ['camping', 'hiking'] } })` for sev
 
 The `ACTIVITY_TYPES` and `PROVINCES` lists in `server/models/spot.js` are starting points —
 refine them; Costa Rica's category list is something you know better than this doc does.
+
+## Who owns a spot
+
+**Nobody does: spots are curated by us, not submitted by users.** The course's YelpCamp lets any
+user create a campground and guards edits with `isAuthor`. That model doesn't fit here. A
+user-submitted spot can't be verified as a real, reachable, publicly accessible place, and the
+map's whole value is that every pin on it is real.
+
+- **Writes to spots** come from two places only: the seed script (`server/seeds/`) and
+  admin-gated routes (`role: 'admin'` on the User). There is no `author` on a spot; `addedBy` is
+  a record of which admin created it, and no request can rewrite it. No route grants the admin
+  role: promote by hand or with `npm run seed -- --admin <email>`.
+- **Users interact with spots**, they don't create them: mark one `want` (to visit) or
+  `visited`, vote, review, log trips with photos.
+- **Votes and reviews require a visit.** You get an opinion on a place once you've been there.
+- **Photos live on the user's visit log.** An admin can promote standouts into the spot's
+  curated gallery, and the photo keeps a `credit` to whoever took it.
+- **Businesses are allowed as spots**, not just natural features. For rafting the operator *is*
+  the access point, so excluding them would leave real activities unmappable.
 
 ## How this gets built: backend-first, decoupled from the React client
 
@@ -76,7 +95,7 @@ queries, middleware structure, async error handling, multer/cloudinary) carries 
 | `res.redirect(...)` after delete | `res.status(204).send()` — no body needed |
 | `req.flash('success', '...')` then redirect | Skip `connect-flash` entirely server-side — just return the JSON body/status; the *client* shows a toast based on the response |
 | `isLoggedIn` middleware: redirect to `/login` + flash if not authenticated | `res.status(401).json({ error: 'You must be signed in' })` |
-| `isAuthor` middleware: redirect + flash if not the owner | `res.status(403).json({ error: 'Not authorized' })` |
+| `isAuthor` middleware: redirect + flash if not the owner | `res.status(403).json({ error: 'You do not have permission to do that' })`. Spots have no owner here, so the check is `isAdmin`; only reviews keep an ownership check (`isReviewAuthor`) |
 | Joi validation failure -> re-render form with errors | `res.status(400).json({ error: details })` — no re-render logic to write at all |
 | `app.use(express.urlencoded({ extended: true }))` for HTML form bodies | `app.use(express.json())` for `fetch()`-sent JSON bodies (already in the scaffold) |
 | `method-override` (`_method=PUT` trick for HTML forms) | Not needed — `fetch` can send a real PUT/DELETE directly |
@@ -91,7 +110,7 @@ queries, middleware structure, async error handling, multer/cloudinary) carries 
 | Backend framework | Express (JSON API, no view engine) | Course teaches EJS-rendered Express; here Express only serves `/api/*` JSON |
 | Database | MongoDB + Mongoose | Same as course |
 | Auth | passport, passport-local, passport-local-mongoose, express-session, connect-mongo | Session-cookie auth, same model as course — consumed from React via fetch with credentials include + CORS with credentials true |
-| Validation | joi (server) | Course's approach; consider zod client-side too since React forms want their own validation |
+| Validation | joi (server), not yet added | Course's approach; consider zod client-side too since React forms want their own validation. Until then `utils/normalizeError.js` turns Mongoose errors into honest 400/409 responses |
 | Images | multer, multer-storage-cloudinary, cloudinary | Same as course |
 | Maps | @mapbox/mapbox-sdk (geocoding) + a rendering library TBD — see Open Decisions | Course only needs geocoding server-side; the rendering library is new since there's no more EJS+Mapbox GL script tag |
 | Security | helmet, express-mongo-sanitize, sanitize-html | Same as course |
@@ -106,105 +125,148 @@ queries, middleware structure, async error handling, multer/cloudinary) carries 
 
 ```
 Scarlata/
-  server/           Express API — scaffolded, see below
+  server/           Express API, see below
   client/           Vite React app — not yet scaffolded, deferred to the React batch phase
 ```
 
 One repo, two `package.json`s, run independently in dev (`npm run dev` in each; a root
-`concurrently` script can wire them together once `client/` exists). Samuel is initializing the
-git repo himself.
+`concurrently` script can wire them together once `client/` exists).
 
-**`server/` is already scaffolded** with a Phase 1 starting point, matching where your `YelpCamp`
-build currently is (basic CRUD, pre-auth):
+**`server/` is built out through the whole backend feature set** (everything in the API routes
+section below):
 
 ```
 server/
-  app.js               Express app + CORS (origin http://localhost:5173 for the future Vite client)
-  db/connection.js     mongoose.connect(), mirrors YelpCamp/db/connection.js — db name 'scarlata'
-  models/spot.js       Spot schema — see "Schema modeling" above
-  package.json         express, mongoose, cors + nodemon
-  .gitignore
+  app.js               Express app, CORS, sessions, router mounts under /api/v1
+  config/passport.js   passport-local strategy
+  db/connection.js     mongoose.connect(), db name 'scarlata'
+  middleware.js        isLoggedIn, isAdmin, findSpot, hasVisited, isReviewAuthor
+  models/              user, spot, spotEntry, review
+  routes/              auth, spots, reviews, logs, me
+  utils/               ExpressError, normalizeError (Mongoose errors -> honest 400/409)
+  seeds/               seed script, 8 fake users, 34 curated spots
+  postman/             collection + local environment covering every route
 ```
 
-`GET/POST /api/spots` and `GET/PUT/DELETE /api/spots/:id` are wired up and return JSON — run
-`npm install` then `npm run dev` inside `server/` (with local MongoDB running) and hit them from
-Postman/Thunder Client. `client/` is intentionally not created yet.
+Run `npm install`, then `npm run dev` inside `server/` (needs local MongoDB and a `.env`, see
+`.env.example`), and `npm run seed -- --with-activity` for a populated database. `client/` is
+intentionally not created yet.
 
 ## Data models
 
-**User** — username, email, password (via passport-local-mongoose)
+**User** — username, email, password (via passport-local-mongoose), `role` (`user` | `admin`,
+default `user`; nothing in the API grants admin).
 
-**Spot** — name, description, images[], location (GeoJSON Point), province, activityTypes[],
-difficulty, bestTimeOfDay, plus optional type-specific fields (trailLengthKm, elevationGainM,
-waterfallHeightM, swimmable, maxOccupancy, permitRequired...), author (ref User). See
-`server/models/spot.js` for the current shape — extend as needed.
+**Spot** — name, description, images[] (`url`, `filename`, `credit`), location (GeoJSON Point),
+province, activityTypes[], difficulty, bestTimeOfDay, plus optional type-specific fields
+(trailLengthKm, elevationGainM, waterfallHeightM, swimmable, maxOccupancy, permitRequired...),
+`addedBy` (ref User, set only when an admin creates it through the API). Curated, never
+user-submitted; see "Who owns a spot". See `server/models/spot.js` for the current shape.
 
-**Review** — spot (ref), author (ref User), rating (1-5), body — same shape as YelpCamp's review.
+**Review** — spot (ref), author (ref User), rating (1-5), body. Same shape as YelpCamp's review,
+with two Scarlata rules: one per person per spot (unique index), and you must have visited.
 
-**VisitLog** ("bitácora entry" / a footprint left on the map) — user (ref), spot (ref), date,
-activityDone (which of the spot's activityTypes you actually did), notes, photos, personal
-rating. This is the "fill the spots on the map" mechanic — a user's own map of Costa Rica fills
-in visually as their VisitLog entries accumulate.
+**SpotEntry** — one document per (user, spot): `status` (`want` | `visited`), `vote` (+1, -1 or
+null, only on a visited spot), and `logs[]`, the "bitácora entries". Each log is a trip:
+visitedAt, activitiesDone (from the spot's activityTypes), notes, photos[]. This one collection
+is the whole "fill the spots on the map" mechanic: the to-visit list, the visited list, votes
+and trip history are all views onto it, and a user's own map of Costa Rica fills in as their
+visited entries accumulate. Logs are a subdocument array, not a collection, because they're
+only ever read through their entry.
 
 ## API routes (sketch)
 
+All under `/api/v1`. Every route below exists; `server/postman/` has a request for each.
+
 ```
-POST   /api/auth/register
-POST   /api/auth/login
-POST   /api/auth/logout
-GET    /api/auth/me
+POST   /auth/register
+POST   /auth/login
+POST   /auth/logout
+GET    /auth/me
 
-GET    /api/spots                 (supports ?activityType=camping filtering later)
-POST   /api/spots                (auth required)
-GET    /api/spots/:id
-PUT    /api/spots/:id            (auth + author only)
-DELETE /api/spots/:id            (auth + author only)
+GET    /spots                       public; adds myStatus per spot when signed in
+                                    (?activityType / ?province filtering not built yet)
+GET    /spots/:id                   public; includes votes: { up, down }
+POST   /spots                       admin
+PUT    /spots/:id                   admin
+DELETE /spots/:id                   admin (cascades to entries and reviews)
 
-POST   /api/spots/:id/reviews    (auth required)
-DELETE /api/reviews/:id          (auth + review author only)
+PUT    /spots/:id/status            auth; { status: 'want' | 'visited' }
+POST   /spots/:id/vote              auth + visited; { vote: 1 | -1 }
+DELETE /spots/:id/vote              auth + visited
 
-POST   /api/spots/:id/logs       (auth required — log a visit)
-GET    /api/users/me/logbook     (auth required — my visit history / my footprint map)
+GET    /spots/:id/reviews           public
+POST   /spots/:id/reviews           auth + visited
+PUT    /spots/:id/reviews/:reviewId     review author or admin
+DELETE /spots/:id/reviews/:reviewId     review author or admin
+
+GET    /spots/:id/logs              auth; my logs for this spot
+POST   /spots/:id/logs              auth + visited
+PUT    /spots/:id/logs/:logId       auth + visited (my log only)
+DELETE /spots/:id/logs/:logId       auth + visited (my log only)
+
+GET    /spots/:id/log-photos        admin; every user photo on this spot
+POST   /spots/:id/gallery           admin; promote a log photo into the gallery
+DELETE /spots/:id/gallery?url=      admin
+
+GET    /me/lists                    auth; { want: [...], visited: [...] }
+GET    /me/progress                 auth; visited/total overall, by province, by activity
 ```
 
 ## Frontend pages (sketch — build these in the React batch phase, not lesson-by-lesson)
 
 - `/` — home / hero
 - `/spots` — list + map view (grid of cards + map markers, filterable by activityType/province)
-- `/spots/:id` — spot detail: photos, description, tabs for Reviews / Visit reports
-- `/spots/new`, `/spots/:id/edit` — forms (auth + author gated)
+- `/spots/:id` — spot detail: photos, description, votes, want/visited toggle, tabs for Reviews /
+  My visit logs
 - `/logbook` — the user's personal visit history ("mi bitácora") — the filling-in map lives here,
-  filterable by activity
+  fed by `/me/lists` and `/me/progress`, filterable by activity
 - `/login`, `/register`
+- No spot create/edit pages: spots are curated. An admin UI (spot editing, gallery promotion) is
+  a possible later addition on top of the admin routes, not a user-facing form.
 
 ## Phased roadmap (mapped to where the course will take you)
 
 Each phase below: build the backend piece alongside the matching course lesson (verify with
 Postman); the "-> React" note is what gets batched into `client/` later, not done same-day.
 
-1. **Express API + Mongoose CRUD for Spot** — done (server scaffold above). -> React: spot list +
-   detail pages.
+Backend status: phases 1, 3, 4 and 7 are done; 5, 6 and 8 are partly done or not started, as
+noted. Phase 2 (React) hasn't started.
+
+1. **Express API + Mongoose CRUD for Spot** — done, and 34 curated spots are seeded. -> React:
+   spot list + detail pages.
 2. **Vite + React scaffold** — first React batch: wire up `client/`, list + detail pages against
-   the Phase 1 API. No auth yet.
-3. **Auth** — passport-local + sessions on the server; -> React: login/register pages + an
+   the API. Not started.
+3. **Auth** — done: passport-local + sessions on the server. -> React: login/register pages + an
    "am I logged in" context/hook.
-4. **Authorization** — `isAuthor`-style middleware (course teaches this on campgrounds); apply to
-   Spot edit & delete. -> React: hide/disable edit-delete UI for non-owners.
-5. **Images** — multer + cloudinary upload. -> React: multi-image upload form.
-6. **Maps** — geocode spot addresses server-side (mapbox SDK). -> React: render markers/clusters,
-   with whichever rendering library you land on (see Open Decisions), and an activityType filter.
-7. **Nested resources: Reviews + VisitLog** — this is where Scarlata earns its keep beyond a
-   YelpCamp reskin, and where the "fill the map" mechanic actually comes alive. -> React: review
-   form, visit-log entry form, logbook/progress page.
-8. **Validation & hardening** — joi schemas server-side, zod + react-hook-form client-side,
-   helmet/mongo-sanitize/sanitize-html.
+4. **Authorization** — done, but not the course's `isAuthor`: spots aren't user-owned (see "Who
+   owns a spot"), so spot writes are gated by `isAdmin`, and `isReviewAuthor` is the only
+   ownership check left. -> React: hide admin-only controls from non-admins.
+5. **Images** — multer + cloudinary upload. Not started: images are URLs for now, and
+   `ImageSchema` already carries `url` and `filename` (Cloudinary `public_id`) so the switch
+   isn't a migration. -> React: multi-image upload form.
+6. **Maps** — geocode spot addresses server-side (mapbox SDK). Not started (seeded spots carry
+   hand-sourced coordinates). -> React: render markers/clusters, with whichever rendering
+   library you land on (see Open Decisions), and an activityType filter.
+7. **Nested resources: Reviews + visit logs + progress** — done. This is where Scarlata earns its
+   keep beyond a YelpCamp reskin, and where the "fill the map" mechanic actually comes alive:
+   want/visited status, votes, reviews, visit logs with photos, admin gallery promotion, and the
+   `/me` logbook endpoints. -> React: review form, visit-log entry form, logbook/progress page.
+8. **Validation & hardening** — not started, with one change: **Joi is pulled forward** and gets
+   built right after the backend commit, before image uploads (uploads need the file and photo
+   checks anyway). What stays here: zod + react-hook-form client-side, helmet, mongo-sanitize,
+   sanitize-html, rate limiting.
 9. **Deployment** — API + static client, per your project's "deployment" focus.
 
 ## Open decisions for later
 
 - **`ACTIVITY_TYPES` / `PROVINCES` lists** — the ones in `server/models/spot.js` are a starting
-  guess (hiking, waterfall, river, camping, viewpoint, hot-springs, swimming-hole). Refine freely
-  as you think through the concept more — this is local knowledge, not a technical decision.
+  guess (ten activity types, from hiking and waterfall to rafting and snorkeling, plus the seven
+  provinces). Refine freely as you think through the concept more — this is local knowledge, not
+  a technical decision. Every activity type now has at least one seeded spot, so removing one
+  has a data cost.
+- **Spanish.** Production language should be Spanish; the seeded content is English. See
+  TODO.md for the `{ es, en }` question, best settled before the content grows.
 - **Mapping/rendering library** — you want to research this yourself once you get there. The
   course's Mapbox geocoding API call (server-side, turning an address into coordinates) is worth
   keeping regardless of what you pick for rendering — that part isn't the expensive one. What's
@@ -218,11 +280,6 @@ Postman); the "-> React" note is what gets batched into `client/` later, not don
 
 ## Naming history
 
-- Started as CragLog (climbing-only concept).
-- Pivoted to Trillo when the concept broadened to all Costa Rica outdoor activities — dropped
-  because it reads too close to "Trello."
-- Renamed to Huella ("footprint") — fit the fill-the-map/visit-tracking mechanic directly, but
-  the search kept going.
 - Settled on Scarlata — wordplay on "escarlata"/Guacamaya escarlata (Scarlet Macaw), checked
   clean against existing apps/companies, and "scarlet" carries a bold, vivid connotation in
   English on its own even without the bird reference.
