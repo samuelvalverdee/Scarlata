@@ -1,8 +1,8 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const passport = require("../config/passport");
-const User = require("../models/user");
-const { isLoggedIn } = require("../middleware");
+const passport = require('../config/passport');
+const User = require('../models/user');
+const { isLoggedIn } = require('../middleware');
 
 // No try/catch here on purpose. Catching locally and returning res.status(400) meant every
 // failure looked like a bad request and echoed the raw driver text straight to the client —
@@ -22,7 +22,13 @@ router.post('/register', async (req, res, next) => {
 router.post('/login', (req, res, next) => {
     passport.authenticate('local', (err, user, info) => {
         if (err) return next(err);
-        if (!user) return res.status(401).json({ error: info?.message || 'Invalid username/email or password' });
+        if (!user)
+            return res
+                .status(401)
+                .json({
+                    error:
+                        info?.message || 'Invalid username/email or password',
+                });
         req.login(user, (err) => {
             if (err) return next(err);
             res.json({ user });

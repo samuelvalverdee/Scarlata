@@ -38,7 +38,7 @@ module.exports = [
         bestTimeOfDay: 'morning',
         estimatedDurationHrs: 3,
         trailLengthKm: 6,
-        swimmable: false,     // Swimming is prohibited park-wide, worth stating on the page
+        swimmable: false, // Swimming is prohibited park-wide, worth stating on the page
         permitRequired: true,
         oneDayTrip: true,
         images: [],
@@ -46,7 +46,7 @@ module.exports = [
     {
         name: 'Catarata Río Fortuna',
         description:
-            'La Fortuna\'s waterfall, reached by a long staircase down a steep green gorge. ' +
+            "La Fortuna's waterfall, reached by a long staircase down a steep green gorge. " +
             'The pool at the base is swimmable but the current directly under the fall is ' +
             'strong enough that the calmer pool downstream is where most people actually get in. ' +
             'Easy to combine with Arenal in the same day since it is minutes from town.',
@@ -572,7 +572,7 @@ module.exports = [
     {
         name: 'Parque Nacional Marino Ballena',
         description:
-            'The sandbar off Uvita that forms a whale\'s tail at low tide, and the shape is real and ' +
+            "The sandbar off Uvita that forms a whale's tail at low tide, and the shape is real and " +
             'you can walk out onto it, but only on the right tide, so this is a spot where timing ' +
             'is the entire plan. Humpbacks pass through on two separate migrations, which gives ' +
             'the park an unusually long whale season.',
@@ -580,7 +580,7 @@ module.exports = [
         province: 'Puntarenas',
         activityTypes: ['snorkeling', 'hiking'],
         difficulty: 'easy',
-        bestTimeOfDay: 'anytime',   // Governed by the tide table, not the clock
+        bestTimeOfDay: 'anytime', // Governed by the tide table, not the clock
         swimmable: true,
         estimatedDurationHrs: 3,
         permitRequired: true,
@@ -631,7 +631,7 @@ module.exports = [
     {
         name: 'Parque Nacional Cahuita',
         description:
-            'A flat coastal trail running between the sea and the forest, with the country\'s ' +
+            "A flat coastal trail running between the sea and the forest, with the country's " +
             'most accessible living coral reef just offshore. Snorkelling is guided-only over the ' +
             'reef itself. Entry at the Kelly Creek end is by donation, which makes it one of the ' +
             'cheapest national parks to visit.',
