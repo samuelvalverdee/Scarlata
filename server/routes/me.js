@@ -13,7 +13,10 @@ const { ACTIVITY_TYPES, PROVINCES } = Spot;
 // to-visit list), so the client can index straight in with entry.status.
 router.get('/lists', isLoggedIn, async (req, res) => {
     const entries = await SpotEntry.find({ user: req.user._id })
-        .populate('spot', 'name province activityTypes difficulty location images')
+        .populate(
+            'spot',
+            'name province activityTypes difficulty location images',
+        )
         .sort({ updatedAt: -1 });
 
     const lists = { want: [], visited: [] };
@@ -46,14 +49,21 @@ router.get('/progress', isLoggedIn, async (req, res) => {
     ]);
 
     const visitedIds = new Set(
-        entries.filter((e) => e.status === 'visited').map((e) => e.spot.toString()),
+        entries
+            .filter((e) => e.status === 'visited')
+            .map((e) => e.spot.toString()),
     );
 
     // Seeded from the enums so a province or activity with no spots yet still shows up as 0/0
     // instead of vanishing from the response.
-    const byProvince = new Map(PROVINCES.map((p) => [p, { province: p, visited: 0, total: 0 }]));
+    const byProvince = new Map(
+        PROVINCES.map((p) => [p, { province: p, visited: 0, total: 0 }]),
+    );
     const byActivity = new Map(
-        ACTIVITY_TYPES.map((a) => [a, { activityType: a, visited: 0, total: 0 }]),
+        ACTIVITY_TYPES.map((a) => [
+            a,
+            { activityType: a, visited: 0, total: 0 },
+        ]),
     );
 
     for (const spot of spots) {

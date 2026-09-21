@@ -40,7 +40,10 @@ function normalizeError(err) {
     if (err.name === 'UserExistsError') {
         return { statusCode: 409, message: err.message };
     }
-    if (err.name === 'MissingPasswordError' || err.name === 'MissingUsernameError') {
+    if (
+        err.name === 'MissingPasswordError' ||
+        err.name === 'MissingUsernameError'
+    ) {
         return { statusCode: 400, message: err.message };
     }
     // 11000 is MongoDB's duplicate-key code: a unique index rejected the write. 409 Conflict —
@@ -49,7 +52,9 @@ function normalizeError(err) {
         const fields = Object.keys(err.keyPattern ?? {}).join(', ');
         return {
             statusCode: 409,
-            message: fields ? `That ${fields} is already taken` : 'That value is already taken',
+            message: fields
+                ? `That ${fields} is already taken`
+                : 'That value is already taken',
         };
     }
 
@@ -58,9 +63,10 @@ function normalizeError(err) {
     // you're the one reading it.
     return {
         statusCode: 500,
-        message: process.env.NODE_ENV === 'production'
-            ? 'Something went wrong'
-            : err.message || 'Something went wrong',
+        message:
+            process.env.NODE_ENV === 'production'
+                ? 'Something went wrong'
+                : err.message || 'Something went wrong',
     };
 }
 

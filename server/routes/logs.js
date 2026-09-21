@@ -37,9 +37,15 @@ function logFields(body, spot) {
         // can't smuggle a javascript: or data: URI into an <img src> on someone's screen.
         if (
             !Array.isArray(photos) ||
-            !photos.every((p) => typeof p?.url === 'string' && /^https?:\/\//i.test(p.url))
+            !photos.every(
+                (p) =>
+                    typeof p?.url === 'string' && /^https?:\/\//i.test(p.url),
+            )
         ) {
-            throw new ExpressError('photos must be a list of { url } with http(s) URLs', 400);
+            throw new ExpressError(
+                'photos must be a list of { url } with http(s) URLs',
+                400,
+            );
         }
         fields.photos = photos.map(({ url, filename }) => ({ url, filename }));
     }
@@ -50,7 +56,10 @@ function logFields(body, spot) {
 router.get('/', isLoggedIn, findSpot, async (req, res) => {
     // No hasVisited: someone who has only marked the spot 'want' simply has no logs yet, which
     // is an empty list, not a 403.
-    const entry = await SpotEntry.findOne({ user: req.user._id, spot: req.spot._id });
+    const entry = await SpotEntry.findOne({
+        user: req.user._id,
+        spot: req.spot._id,
+    });
     res.json(entry?.logs ?? []);
 });
 

@@ -4,8 +4,8 @@ const cors = require('cors');
 const connectDB = require('./db/connection');
 const { MongoStore } = require('connect-mongo');
 
-const session = require("express-session");
-const passport = require("./config/passport");
+const session = require('express-session');
+const passport = require('./config/passport');
 
 const ExpressError = require('./utils/ExpressError');
 const normalizeError = require('./utils/normalizeError');
@@ -24,27 +24,29 @@ async function main() {
 main().catch((err) => console.log(`Connection error: ${err}`));
 
 // *********************************************************************
-app.use(cors({
-    origin: process.env.CLIENT_ORIGIN,
-    credentials: true,
-}));
+app.use(
+    cors({
+        origin: process.env.CLIENT_ORIGIN,
+        credentials: true,
+    }),
+);
 
 app.use(express.json());
 
 app.use(
-  session({
-    store: MongoStore.create({
-      mongoUrl: process.env.MONGO_URI,
-      touchAfter: 24 * 3600, // only re-save an unchanged session once a day
+    session({
+        store: MongoStore.create({
+            mongoUrl: process.env.MONGO_URI,
+            touchAfter: 24 * 3600, // only re-save an unchanged session once a day
+        }),
+        secret: process.env.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            maxAge: 24 * 60 * 60 * 1000, // Cookie expires in 24 hours
+            secure: process.env.NODE_ENV === 'production', // HTTPS-only once actually deployed; plain http in dev
+        },
     }),
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 24 * 60 * 60 * 1000, // Cookie expires in 24 hours
-      secure: process.env.NODE_ENV === 'production', // HTTPS-only once actually deployed; plain http in dev
-    },
-  }),
 );
 
 app.use(passport.initialize());
@@ -70,7 +72,10 @@ app.use((err, req, res, next) => {
     // A 5xx means we did not anticipate this one — it still has to be visible to us on the
     // server even though the client only gets a generic message back.
     if (statusCode >= 500) console.error(err);
-    res.status(statusCode).json({ error: message, ...(details && { details }) });
+    res.status(statusCode).json({
+        error: message,
+        ...(details && { details }),
+    });
 });
 
 app.listen(3001, () => {

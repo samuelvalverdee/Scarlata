@@ -5,16 +5,21 @@ const Schema = mongoose.Schema;
 // because logs are only ever read through their parent entry ("show me my visits to Chirripó"),
 // never queried on their own — and the array is naturally small (how many times can you
 // realistically climb the same mountain?).
-const LogSchema = new Schema({
-    visitedAt: { type: Date, default: Date.now },
-    activitiesDone: [String], // which of the spot's activityTypes you actually did that trip
-    notes: String,
-    photos: [{
-        url: { type: String, required: true },
-        filename: String, // Cloudinary public_id, Phase 5
-        _id: false,
-    }],
-}, { timestamps: true });
+const LogSchema = new Schema(
+    {
+        visitedAt: { type: Date, default: Date.now },
+        activitiesDone: [String], // which of the spot's activityTypes you actually did that trip
+        notes: String,
+        photos: [
+            {
+                url: { type: String, required: true },
+                filename: String, // Cloudinary public_id, Phase 5
+                _id: false,
+            },
+        ],
+    },
+    { timestamps: true },
+);
 
 // ONE document per (user, spot) pair — this is the want / visited mechanic.
 //
@@ -29,30 +34,33 @@ const LogSchema = new Schema({
 //
 // `vote` lives here rather than on Spot for the same reason a review does: it belongs to the
 // person, not the place. Spot-level tallies are aggregated from this collection on read.
-const SpotEntrySchema = new Schema({
-    user: {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
+const SpotEntrySchema = new Schema(
+    {
+        user: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+            required: true,
+        },
+        spot: {
+            type: Schema.Types.ObjectId,
+            ref: 'Spot',
+            required: true,
+        },
+        status: {
+            type: String,
+            enum: ['want', 'visited'],
+            required: true,
+        },
+        // +1 / -1, or null for "visited but hasn't voted". Only meaningful when status is 'visited'.
+        vote: {
+            type: Number,
+            enum: [1, -1, null],
+            default: null,
+        },
+        logs: [LogSchema],
     },
-    spot: {
-        type: Schema.Types.ObjectId,
-        ref: 'Spot',
-        required: true
-    },
-    status: {
-        type: String,
-        enum: ['want', 'visited'],
-        required: true
-    },
-    // +1 / -1, or null for "visited but hasn't voted". Only meaningful when status is 'visited'.
-    vote: {
-        type: Number,
-        enum: [1, -1, null],
-        default: null
-    },
-    logs: [LogSchema],
-}, { timestamps: true });
+    { timestamps: true },
+);
 
 // The unique index is what actually enforces one entry per person per spot — without it two
 // concurrent requests can both find nothing and both insert. Every write path below uses

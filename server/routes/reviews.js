@@ -2,7 +2,12 @@ const express = require('express');
 const router = express.Router({ mergeParams: true });
 const Review = require('../models/review');
 const ExpressError = require('../utils/ExpressError');
-const { isLoggedIn, findSpot, hasVisited, isReviewAuthor } = require('../middleware');
+const {
+    isLoggedIn,
+    findSpot,
+    hasVisited,
+    isReviewAuthor,
+} = require('../middleware');
 
 router.get('/', findSpot, async (req, res) => {
     const reviews = await Review.find({ spot: req.params.id })

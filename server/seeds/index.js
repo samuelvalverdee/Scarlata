@@ -40,13 +40,16 @@ function assertLocalTarget(uri) {
     if (LOCAL_HOSTNAMES.includes(hostname)) return;
     throw new Error(
         `Refusing to seed ${hostname}: this script deletes every document in the users, spots, ` +
-        `entries and reviews collections.\nRe-run with --force if you really mean to.`,
+            `entries and reviews collections.\nRe-run with --force if you really mean to.`,
     );
 }
 
 async function main() {
     const uri = process.env.MONGO_URI;
-    if (!uri) throw new Error('MONGO_URI is not set. Copy server/.env.example to server/.env');
+    if (!uri)
+        throw new Error(
+            'MONGO_URI is not set. Copy server/.env.example to server/.env',
+        );
     if (!flags.force) assertLocalTarget(uri);
 
     await connectDB(uri);
@@ -63,7 +66,9 @@ async function main() {
     const spots = await seedSpots();
     if (flags['with-activity']) await seedActivity(users, spots);
 
-    console.log('\nDone. Log in with any seeded email and the password in seeds/users.js.');
+    console.log(
+        '\nDone. Log in with any seeded email and the password in seeds/users.js.',
+    );
 }
 
 async function wipe() {
@@ -75,7 +80,7 @@ async function wipe() {
     ]);
     console.log(
         `Cleared ${users.deletedCount} users, ${spots.deletedCount} spots, ` +
-        `${entries.deletedCount} entries, ${reviews.deletedCount} reviews`,
+            `${entries.deletedCount} entries, ${reviews.deletedCount} reviews`,
     );
 }
 
@@ -88,7 +93,9 @@ async function seedUsers() {
         users.push(await User.register(new User(fields), password));
     }
     const admins = users.filter((u) => u.role === 'admin').map((u) => u.email);
-    console.log(`Seeded ${users.length} users (admin: ${admins.join(', ') || 'none'})`);
+    console.log(
+        `Seeded ${users.length} users (admin: ${admins.join(', ') || 'none'})`,
+    );
     return users;
 }
 
@@ -164,11 +171,18 @@ async function seedActivity(users, spots) {
                 status: visited ? 'visited' : 'want',
                 vote: voted ? (rand() < 0.85 ? 1 : -1) : null,
                 logs: visited
-                    ? [{
-                        visitedAt: new Date(Date.now() - Math.floor(rand() * 730) * 86400000),
-                        activitiesDone: spot.activityTypes.length ? [pick(spot.activityTypes)] : [],
-                        notes: pick(NOTES),
-                    }]
+                    ? [
+                          {
+                              visitedAt: new Date(
+                                  Date.now() -
+                                      Math.floor(rand() * 730) * 86400000,
+                              ),
+                              activitiesDone: spot.activityTypes.length
+                                  ? [pick(spot.activityTypes)]
+                                  : [],
+                              notes: pick(NOTES),
+                          },
+                      ]
                     : [],
             });
 
@@ -178,7 +192,10 @@ async function seedActivity(users, spots) {
                 reviews.push({
                     spot: spot._id,
                     author: user._id,
-                    rating: rand() < 0.75 ? 4 + Math.round(rand()) : 2 + Math.round(rand()),
+                    rating:
+                        rand() < 0.75
+                            ? 4 + Math.round(rand())
+                            : 2 + Math.round(rand()),
                     body: pick(REVIEW_BODIES),
                 });
             }
@@ -188,14 +205,20 @@ async function seedActivity(users, spots) {
     await SpotEntry.insertMany(entries);
     await Review.insertMany(reviews);
     const visits = entries.filter((e) => e.status === 'visited').length;
-    console.log(`Seeded ${entries.length} entries (${visits} visited), ${reviews.length} reviews`);
+    console.log(
+        `Seeded ${entries.length} entries (${visits} visited), ${reviews.length} reviews`,
+    );
 }
 
 // The only way an account becomes an admin. No route grants the role (see models/user.js),
 // so this stays an operator action taken against the database, not something the API can be
 // talked into.
 async function promoteAdmin(email) {
-    const user = await User.findOneAndUpdate({ email }, { role: 'admin' }, { new: true });
+    const user = await User.findOneAndUpdate(
+        { email },
+        { role: 'admin' },
+        { new: true },
+    );
     if (!user) throw new Error(`No account registered with email ${email}`);
     console.log(`${user.email} is now an admin.`);
 }

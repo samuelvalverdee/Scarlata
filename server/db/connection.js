@@ -7,7 +7,9 @@ require('dotenv').config();
 // because it passes process.env.MONGO_URI explicitly.
 async function connectDB(MONGO_URI = process.env.MONGO_URI) {
     if (!MONGO_URI) {
-        throw new Error('MONGO_URI is not set. Copy server/.env.example to server/.env');
+        throw new Error(
+            'MONGO_URI is not set. Copy server/.env.example to server/.env',
+        );
     }
     await mongoose.connect(MONGO_URI);
 }
