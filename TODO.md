@@ -22,13 +22,7 @@ Not built yet: request validation, hardening, image uploads, map/geocoding, spot
 
 ## Next steps, in order
 
-1. **Commit and push the backend work, then a repo-wide Prettier pass in its own commit.**
-   - Prettier is not a dependency yet: add it as a devDependency with a `format` script, using the
-     existing `.prettierrc.json` (4 spaces, single quotes).
-   - `routes/spots.js`, `routes/reviews.js` and the newer files are already Prettier style;
-     `auth.js`, `models/user.js` and a few others are still 2 spaces and double quotes.
-   - Add the format commit to `.git-blame-ignore-revs` so blame stays useful.
-2. **Joi validation** (pulled forward from plan Phase 8). A `schemas.js` plus a `validate`
+1. **Joi validation** (pulled forward from plan Phase 8). A `schemas.js` plus a `validate`
    middleware, applied before the handlers.
    - Schemas for: register and login, spot create (required fields) and spot update (all fields
      optional), status, vote, review create and update, visit log create and update, gallery
@@ -50,7 +44,7 @@ Not built yet: request validation, hardening, image uploads, map/geocoding, spot
      map it to its own copy instead of showing English text.
    - Verify: every schema against the 34 seeded spots (they must all pass), plus a bad-input
      request per route. Add those cases to Postman.
-3. **Cloudinary image uploads** (plan Phase 5). Multer plus `multer-storage-cloudinary`; the server
+2. **Cloudinary image uploads** (plan Phase 5). Multer plus `multer-storage-cloudinary`; the server
    receives the file and only the returned `url` and `public_id` (`filename`) reach MongoDB.
    - Config: Cloudinary keys in `.env` and `.env.example`, never sent to the client.
    - Server-side limits: real MIME type (not just extension), `limits.fileSize` (about 5 MB), a max
@@ -61,11 +55,11 @@ Not built yet: request validation, hardening, image uploads, map/geocoding, spot
      failed DB save after a successful upload. See the debt entry on gallery copies before wiring
      this.
    - Frontend later: previews, per-file errors, progress, and resizing before upload on mobile.
-4. **The rest of Phase 8 hardening:** helmet, express-mongo-sanitize, sanitize-html, rate limiting
+3. **The rest of Phase 8 hardening:** helmet, express-mongo-sanitize, sanitize-html, rate limiting
    (auth and upload routes first).
-5. **Maps and filtering:** Mapbox geocoding server-side, `?activityType` and `?province` on
+4. **Maps and filtering:** Mapbox geocoding server-side, `?activityType` and `?province` on
    `GET /spots`.
-6. **Spanish content pass** (see the decision below), then the `client/` scaffold.
+5. **Spanish content pass** (see the decision below), then the `client/` scaffold.
 
 ## Open decisions
 
@@ -118,8 +112,7 @@ Not built yet: request validation, hardening, image uploads, map/geocoding, spot
   the vote but keeps the visit logs and the review. Deliberate for now (nothing is lost if someone
   taps the wrong button), but the spot page will show a review from someone whose status says they
   haven't been. Decide when the frontend needs it.
-- **Formatting is uneven across the older files.** Tracked as step 1 above.
-- **No rate limiting, helmet or mongo-sanitize yet** (step 4).
+- **No rate limiting, helmet or mongo-sanitize yet** (step 3).
 - **Vote tallies and progress are computed on read.** `GET /spots/:id` aggregates the votes, and
   `/me/progress` is computed in JS from two flat queries. `byActivity` counts a multi-activity spot
   once per activity, so its totals exceed the overall total by design. Fine at this scale;
@@ -140,6 +133,7 @@ cd server && npm install && npm run dev     # needs local MongoDB, port 3001, AP
 npm run seed                                # users + spots
 npm run seed -- --with-activity             # plus fake visits, votes, reviews
 npm run seed -- --admin <email>             # promote one account, wipes nothing
+npm run format                              # Prettier; format:check to verify (4 spaces, single quotes)
 ```
 
 `npm run seed` wipes users, spots, entries and reviews. It refuses to run against a non-local
