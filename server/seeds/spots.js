@@ -7,7 +7,8 @@
 //     not recalled from memory. This is the most trustworthy field in the file.
 //   - `province` comes from reverse-geocoding those coordinates (Nominatim). Where the
 //     geocoder disagreed with how a place is commonly described, the override is commented.
-//   - Descriptions and `difficulty` are best-effort and worth a local's read.
+//   - Descriptions and `difficulty` are best-effort and worth a local's read. Names and
+//     descriptions are in Spanish (the app is Spanish-first); enum values stay English keys.
 //   - The optional numeric specs (trailLengthKm, waterfallHeightM, maxOccupancy, elevation,
 //     duration) are indicative, deliberately NOT individually verified. They are display
 //     detail for a frontend that doesn't exist yet. Don't trust them for planning a trip.
@@ -24,11 +25,12 @@ module.exports = [
     {
         name: 'Catarata Río Celeste',
         description:
-            'The waterfall in Tenorio Volcano National Park where the river turns turquoise. ' +
-            'The colour is a mineral effect, not sediment, and it washes out for a while after ' +
-            'heavy rain, so going the day after a downpour is how most people end up disappointed. ' +
-            'The falls sit at the bottom of about 250 steps, partway along the park loop that ' +
-            'also passes Los Teñideros, where the two clear rivers meet and the colour starts.',
+            'La catarata del Parque Nacional Volcán Tenorio donde el río se vuelve turquesa. El ' +
+            'color es un efecto mineral, no sedimento, y se pierde por un tiempo después de un ' +
+            'aguacero fuerte, así que ir al día siguiente de una tormenta es la forma más común de ' +
+            'llevarse una decepción. La caída está al fondo de unas 250 gradas, a medio camino del ' +
+            'sendero circular del parque, que también pasa por Los Teñideros, donde se juntan los ' +
+            'dos ríos transparentes y nace el color.',
         location: { type: 'Point', coordinates: [-84.99077, 10.70358] },
         // VERIFY: commonly described as Guanacaste; the park straddles the line and this
         // coordinate reverse-geocodes to Alajuela (Guatuso). Which would a local look under?
@@ -46,10 +48,11 @@ module.exports = [
     {
         name: 'Catarata Río Fortuna',
         description:
-            "La Fortuna's waterfall, reached by a long staircase down a steep green gorge. " +
-            'The pool at the base is swimmable but the current directly under the fall is ' +
-            'strong enough that the calmer pool downstream is where most people actually get in. ' +
-            'Easy to combine with Arenal in the same day since it is minutes from town.',
+            'La catarata de La Fortuna, a la que se llega por una larga escalera que baja por un ' +
+            'cañón verde y empinado. En la poza al pie de la caída se puede nadar, pero la ' +
+            'corriente justo debajo es tan fuerte que casi todos terminan metiéndose en la poza ' +
+            'más tranquila, río abajo. Fácil de combinar con el Arenal el mismo día, porque está a ' +
+            'pocos minutos del pueblo.',
         location: { type: 'Point', coordinates: [-84.66933, 10.43919] },
         province: 'Alajuela',
         activityTypes: ['waterfall'],
@@ -65,9 +68,9 @@ module.exports = [
     {
         name: 'Cerro Chato',
         description:
-            'The extinct cone next to Arenal, with a green crater lagoon in the top. A short ' +
-            'hike by distance and a hard one by effort: relentlessly steep, and mud with any ' +
-            'rain.',
+            'El cono extinto junto al Arenal, con una laguna verde dentro del cráter en la cima. ' +
+            'Una caminata corta en distancia y dura en esfuerzo: empinada de principio a fin, y ' +
+            'puro barro con cualquier lluvia.',
         location: { type: 'Point', coordinates: [-84.68829, 10.44292] },
         province: 'Alajuela',
         activityTypes: ['hiking', 'viewpoint'],
@@ -84,9 +87,10 @@ module.exports = [
     {
         name: 'Catarata del Toro',
         description:
-            'A single tall drop into an old volcanic crater in Bajos del Toro, seen from a ' +
-            'platform partway down a long staircase. Far greener and colder than the Guanacaste ' +
-            'falls, and quiet compared to anything near La Fortuna.',
+            'Una sola caída alta dentro de un antiguo cráter volcánico en Bajos del Toro, vista ' +
+            'desde una plataforma a media bajada de una larga escalera. Mucho más verde y fría que ' +
+            'las cataratas de Guanacaste, y tranquila comparada con cualquier sitio cerca de La ' +
+            'Fortuna.',
         location: { type: 'Point', coordinates: [-84.27251, 10.25344] },
         province: 'Alajuela',
         activityTypes: ['waterfall', 'hiking'],
@@ -102,10 +106,11 @@ module.exports = [
     {
         name: 'Volcán Poás',
         description:
-            'One of the most accessible active craters anywhere, a paved walk from the car park ' +
-            'to a viewing platform above a steaming acid lake. Visits are timed and capped, and ' +
-            'the park closes outright when gas readings climb, so book ahead and expect the ' +
-            'possibility of being turned around. Clearest in the first hours after opening.',
+            'Uno de los cráteres activos más accesibles del mundo: una caminata pavimentada desde ' +
+            'el parqueo hasta un mirador sobre una laguna ácida que echa vapor. Las visitas tienen ' +
+            'horario y cupo, y el parque cierra por completo cuando suben las mediciones de gases, ' +
+            'así que conviene reservar con anticipación y contar con que a uno lo puedan devolver. ' +
+            'Se ve más despejado en las primeras horas después de abrir.',
         location: { type: 'Point', coordinates: [-84.23084, 10.19766] },
         province: 'Alajuela',
         activityTypes: ['viewpoint'],
@@ -118,12 +123,12 @@ module.exports = [
         images: [],
     },
     {
-        name: 'Mistico Arenal Hanging Bridges',
+        name: 'Puentes Colgantes Místico Arenal',
         description:
-            'A loop of suspension bridges through primary forest on the north side of Arenal, ' +
-            'built so you cross the canopy at its own level rather than looking up at it. Gentle ' +
-            'enough to be genuinely accessible, and the reason to go early is birds and sloths ' +
-            'rather than light.',
+            'Un circuito de puentes colgantes entre bosque primario, en el lado norte del Arenal, ' +
+            'hecho para cruzar el dosel a su misma altura en lugar de verlo desde abajo. Es lo ' +
+            'bastante suave como para ser accesible de verdad, y la razón para ir temprano son las ' +
+            'aves y los perezosos, no la luz.',
         location: { type: 'Point', coordinates: [-84.75378, 10.48805] },
         province: 'Alajuela',
         activityTypes: ['hanging-bridges', 'hiking'],
@@ -139,9 +144,10 @@ module.exports = [
     {
         name: 'Termales gratuitas del Río Tabacón',
         description:
-            'The free stretch of the Tabacón, the same volcanically heated river the resorts ' +
-            'downstream charge for, where it passes under the road. No facilities, no fee, and ' +
-            'no supervision: it is a riverbank, and the rocks are slick. Busiest at dusk.',
+            'El tramo gratuito del Tabacón, el mismo río calentado por el volcán por el que cobran ' +
+            'los hoteles río abajo, justo donde pasa bajo la carretera. Sin instalaciones, sin ' +
+            'entrada y sin vigilancia: es la orilla de un río, y las piedras resbalan. Se llena ' +
+            'más al atardecer.',
         location: { type: 'Point', coordinates: [-84.72397, 10.4886] },
         province: 'Alajuela',
         activityTypes: ['hot-springs', 'river'],
@@ -158,10 +164,10 @@ module.exports = [
     {
         name: 'Catarata Llanos de Cortés',
         description:
-            'A wide curtain of water falling into a shallow sandy pool near Bagaces, much ' +
-            'broader than it is tall, which is what makes it photograph the way it does. One of ' +
-            'the few well-known falls where the swimming is genuinely easy and the beach at the ' +
-            'base is big enough to spend an afternoon on.',
+            'Una cortina ancha de agua que cae en una poza poco profunda y de fondo arenoso cerca ' +
+            'de Bagaces. Es mucho más ancha que alta, y por eso sale como sale en las fotos. Una ' +
+            'de las pocas cataratas conocidas donde nadar es fácil de verdad, y la playita al pie ' +
+            'alcanza para pasar la tarde.',
         location: { type: 'Point', coordinates: [-85.2986, 10.5243] },
         province: 'Guanacaste',
         activityTypes: ['waterfall'],
@@ -176,9 +182,10 @@ module.exports = [
     {
         name: 'Volcán Rincón de la Vieja',
         description:
-            'The active volcano above Liberia. The Las Pailas sector at the base (fumaroles, ' +
-            'boiling mud pots, a short forest loop) is what stays open and what most visitors ' +
-            'actually do; the summit route closes whenever activity picks up.',
+            'El volcán activo sobre Liberia. El sector Las Pailas, en la base (fumarolas, pailas ' +
+            'de barro hirviendo y un sendero corto por el bosque), es lo que se mantiene abierto y ' +
+            'lo que hace la mayoría de los visitantes; la ruta a la cima se cierra cada vez que ' +
+            'aumenta la actividad.',
         location: { type: 'Point', coordinates: [-85.33654, 10.83136] },
         // VERIFY: universally thought of as Guanacaste and the park HQ is, but this summit
         // coordinate reverse-geocodes to Alajuela (Upala) because the boundary runs over the
@@ -197,9 +204,9 @@ module.exports = [
     {
         name: 'Cerro Pelado',
         description:
-            'Open grassy ridge with a long view over the Guanacaste lowlands and out toward the ' +
-            'gulf, one of the spots where camping at the top for sunrise is the whole point ' +
-            'rather than an afterthought.',
+            'Una fila abierta de zacate con una vista amplia sobre las bajuras de Guanacaste y ' +
+            'hacia el golfo. Es uno de esos lugares donde acampar arriba para ver el amanecer es ' +
+            'el motivo del viaje y no un extra.',
         location: { type: 'Point', coordinates: [-85.01713, 10.36621] },
         province: 'Guanacaste',
         activityTypes: ['hiking', 'camping', 'viewpoint'],
@@ -218,10 +225,10 @@ module.exports = [
     {
         name: 'Parque Nacional Santa Rosa',
         description:
-            'Dry tropical forest in the far northwest, a rarer ecosystem than the rainforest ' +
-            'the country is known for, and one that transforms completely between seasons: bare ' +
-            'and brown in the dry months, closed and green after the rains. Camping near the ' +
-            'Casona is among the best-organised in the park system.',
+            'Bosque seco tropical en el extremo noroeste, un ecosistema más escaso que el bosque ' +
+            'lluvioso por el que se conoce al país, y que cambia por completo entre estaciones: ' +
+            'pelado y café en los meses secos, cerrado y verde después de las lluvias. El área ' +
+            'para acampar cerca de La Casona es de las mejor organizadas del sistema de parques.',
         location: { type: 'Point', coordinates: [-85.78984, 10.82176] },
         province: 'Guanacaste',
         activityTypes: ['hiking', 'camping'],
@@ -238,10 +245,11 @@ module.exports = [
     {
         name: 'Parque Nacional Barra Honda',
         description:
-            'A limestone hill on the Nicoya peninsula, hollow with caves formed out of old reef ' +
-            'rock. Descending into Terciopelo is done on a ladder with a guide, which makes this ' +
-            'the least improvisable spot on the map, so arrange it in advance or you will only see ' +
-            'the surface trails and the viewpoint.',
+            'Un cerro de piedra caliza en la península de Nicoya, hueco por dentro, con cavernas ' +
+            'formadas en la roca de un antiguo arrecife. El descenso a La Terciopelo se hace por ' +
+            'escalera y con guía, lo que lo convierte en el lugar menos improvisable del mapa: hay ' +
+            'que coordinarlo con anticipación, o solo se verán los senderos de superficie y el ' +
+            'mirador.',
         location: { type: 'Point', coordinates: [-85.33846, 10.1818] },
         province: 'Guanacaste',
         activityTypes: ['hiking', 'viewpoint'],
@@ -255,11 +263,12 @@ module.exports = [
         images: [],
     },
     {
-        name: 'Río Negro Hot Springs',
+        name: 'Termales Río Negro',
         description:
-            'Volcanically heated pools on the Río Negro on the Rincón de la Vieja flank, reached ' +
-            'over a set of small suspension bridges. Rustic and river-fed rather than built  ' +
-            'the appeal is that it still feels like a river rather than a spa.',
+            'Pozas calentadas por el volcán junto al río Negro, en la falda del Rincón de la ' +
+            'Vieja, a las que se llega cruzando unos puentes colgantes pequeños. Son rústicas y se ' +
+            'alimentan del río en lugar de ser construidas. El encanto está en que todavía se ' +
+            'siente como un río y no como un spa.',
         location: { type: 'Point', coordinates: [-85.34714, 10.73969] },
         province: 'Guanacaste',
         activityTypes: ['hot-springs', 'river'],
@@ -276,10 +285,11 @@ module.exports = [
     {
         name: 'Volcán Irazú',
         description:
-            'The highest volcano in the country and the one you can drive to the rim of, which ' +
-            'makes it the rare spot that is genuinely accessible to anyone. Go early: the crater ' +
-            'is usually clear at dawn and socked in with cloud by mid-morning. Cold and exposed ' +
-            'at the top, and people badly underestimate this coming up from the Valle Central.',
+            'El volcán más alto del país y uno al que se puede llegar en carro hasta el borde del ' +
+            'cráter, lo que lo vuelve uno de los pocos lugares accesibles de verdad para ' +
+            'cualquiera. Hay que ir temprano: el cráter suele estar despejado al amanecer y tapado ' +
+            'de nubes a media mañana. Arriba hace frío y no hay dónde resguardarse, y quien sube ' +
+            'desde el Valle Central suele subestimarlo bastante.',
         location: { type: 'Point', coordinates: [-83.84766, 9.98145] },
         province: 'Cartago',
         activityTypes: ['viewpoint'],
@@ -294,9 +304,9 @@ module.exports = [
     {
         name: 'Parque Nacional Tapantí',
         description:
-            'Wet, dense cloud forest on the edge of the Talamanca range, with short river trails ' +
-            'and one of the highest rainfall totals in the country. The draw is the water and the ' +
-            'birds rather than a single headline feature.',
+            'Bosque nuboso húmedo y denso al borde de la cordillera de Talamanca, con senderos ' +
+            'cortos junto al río y uno de los índices de lluvia más altos del país. El atractivo ' +
+            'es el agua y las aves, no un único punto estrella.',
         location: { type: 'Point', coordinates: [-83.71159, 9.67642] },
         province: 'Cartago',
         activityTypes: ['hiking', 'river'],
@@ -312,10 +322,10 @@ module.exports = [
     {
         name: 'Volcán Turrialba',
         description:
-            'The one that has spent years genuinely erupting: ash on cars in San José came from ' +
-            'here. Access depends entirely on current activity and has been shut for long ' +
-            'stretches. When it is open the approach crosses high, bare, wind-scoured ground ' +
-            'that looks like nowhere else in the country.',
+            'El que pasó años en erupción de verdad: la ceniza sobre los carros en San José venía ' +
+            'de aquí. El acceso depende por completo de la actividad del momento y ha estado ' +
+            'cerrado durante temporadas largas. Cuando abre, el camino atraviesa un terreno alto, ' +
+            'pelado y barrido por el viento que no se parece a ningún otro lugar del país.',
         location: { type: 'Point', coordinates: [-83.76315, 10.01932] },
         province: 'Cartago',
         activityTypes: ['hiking', 'viewpoint'],
@@ -334,10 +344,10 @@ module.exports = [
     {
         name: 'Monumento Nacional Guayabo',
         description:
-            'The most significant pre-Columbian site in the country: stone causeways, mounds ' +
-            'and a working aqueduct system, on the flank of Turrialba under forest. Modest ' +
-            'compared to Mesoamerican ruins and worth going for exactly that reason: it is quiet, ' +
-            'and the engineering is the point.',
+            'El sitio precolombino más importante del país: calzadas de piedra, montículos y un ' +
+            'sistema de acueductos que todavía funciona, en la falda del Turrialba y bajo el ' +
+            'bosque. Es modesto al lado de las ruinas mesoamericanas, y justamente por eso vale la ' +
+            'pena: es tranquilo, y lo que impresiona es la ingeniería.',
         location: { type: 'Point', coordinates: [-83.69505, 9.97097] },
         province: 'Cartago',
         activityTypes: ['hiking'],
@@ -352,9 +362,10 @@ module.exports = [
     {
         name: 'Termales Hacienda Orosi',
         description:
-            'Hot pools in the Orosi valley, fed from the Irazú–Turrialba geothermal system and ' +
-            'set against one of the greenest valleys in the Valle Central. Much closer to San ' +
-            'José than the Guanacaste springs, which makes it the realistic weeknight version.',
+            'Pozas termales en el valle de Orosi, alimentadas por el sistema geotérmico del Irazú ' +
+            'y el Turrialba, con uno de los valles más verdes del Valle Central de fondo. Quedan ' +
+            'mucho más cerca de San José que las termales de Guanacaste, lo que las convierte en ' +
+            'la opción realista para una escapada entre semana.',
         location: { type: 'Point', coordinates: [-83.83799, 9.77043] },
         province: 'Cartago',
         activityTypes: ['hot-springs'],
@@ -369,10 +380,10 @@ module.exports = [
     {
         name: 'Río Pacuare',
         description:
-            'The whitewater run the country is known for, class III-IV through a gorge with no ' +
-            'road access, which is why the scenery holds up for the whole descent. Operators ' +
-            'launch from around Tres Equis outside Turrialba. Runnable most of the year, biggest ' +
-            'in the wet months.',
+            'El descenso de aguas bravas por el que se conoce al país, clase III a IV por un cañón ' +
+            'sin acceso por carretera, y por eso el paisaje se mantiene durante todo el recorrido. ' +
+            'Los operadores salen de los alrededores de Tres Equis, en las afueras de Turrialba. ' +
+            'Se puede bajar casi todo el año, y viene más crecido en la época lluviosa.',
         location: { type: 'Point', coordinates: [-83.52745, 9.88677] },
         province: 'Cartago',
         activityTypes: ['rafting', 'river'],
@@ -392,9 +403,10 @@ module.exports = [
     {
         name: 'Volcán Barva',
         description:
-            'The Braulio Carrillo sector above Heredia, where the trail climbs through mossy ' +
-            'cloud forest to a still crater lagoon. Much less visited than Poás or Irazú because ' +
-            'you have to walk it rather than drive it, which is most of its appeal.',
+            'El sector del Braulio Carrillo sobre Heredia, donde el sendero sube entre bosque ' +
+            'nuboso cubierto de musgo hasta una laguna quieta en el cráter. Mucho menos visitado ' +
+            'que el Poás o el Irazú porque hay que caminarlo en lugar de llegar en carro, y en eso ' +
+            'está casi todo su encanto.',
         location: { type: 'Point', coordinates: [-84.10549, 10.13398] },
         province: 'Heredia',
         activityTypes: ['hiking', 'viewpoint'],
@@ -410,10 +422,10 @@ module.exports = [
     {
         name: 'Parque Nacional Braulio Carrillo',
         description:
-            'The wall of forest the highway to Limón cuts straight through: steep, wet, and ' +
-            'dense enough that it reads as a single green mass at speed. The Quebrada González ' +
-            'sector puts short trails right off the road, which makes it the easiest primary ' +
-            'rainforest to reach from San José.',
+            'La muralla de bosque que la carretera a Limón atraviesa de lleno: empinada, húmeda y ' +
+            'tan densa que a velocidad se ve como una sola masa verde. El sector Quebrada González ' +
+            'tiene senderos cortos a la orilla de la carretera, lo que lo vuelve el bosque ' +
+            'lluvioso primario más fácil de alcanzar desde San José.',
         location: { type: 'Point', coordinates: [-84.00189, 10.24007] },
         // VERIFY: the park spans Heredia, San José and Limón; the centroid lands in Heredia
         // (Sarapiquí). Pin should move to the Quebrada González ranger station.
@@ -430,9 +442,9 @@ module.exports = [
     {
         name: 'Río Sarapiquí',
         description:
-            'The gentler whitewater alternative to the Pacuare, class II-III around La Virgen, ' +
-            'runnable by people who have never rafted, through lowland forest with genuinely good ' +
-            'wildlife off the banks. The section above La Virgen steps up for anyone who wants it.',
+            'La alternativa más suave al Pacuare en aguas bravas, clase II a III por La Virgen, ' +
+            'apta para quien nunca ha hecho rafting, entre bosque de bajura con muy buena fauna en ' +
+            'las orillas. El tramo arriba de La Virgen sube de nivel para quien lo quiera.',
         location: { type: 'Point', coordinates: [-84.12797, 10.37028] },
         province: 'Heredia',
         activityTypes: ['rafting', 'river'],
@@ -449,11 +461,12 @@ module.exports = [
     {
         name: 'Cerro Chirripó',
         description:
-            'The highest point in Costa Rica at 3,820m, and the only place in the country with ' +
-            'real páramo above the treeline. Two days minimum: a long climb from San Gerardo de ' +
-            'Rivas to the Crestones base lodge, then a pre-dawn push to the summit to be up there ' +
-            'before the cloud. Beds at the lodge are booked through SINAC and sell out months out. ' +
-            'This is not a spot you can decide on the morning of.',
+            'El punto más alto de Costa Rica, a 3820 m, y el único lugar del país con páramo de ' +
+            'verdad por encima del límite del bosque. Son dos días como mínimo: una subida larga ' +
+            'desde San Gerardo de Rivas hasta el albergue base Crestones, y luego un ascenso de ' +
+            'madrugada a la cima para estar arriba antes que las nubes. Las camas del albergue se ' +
+            'reservan por medio del SINAC y se agotan con meses de anticipación. No es un lugar ' +
+            'que se pueda decidir la misma mañana.',
         location: { type: 'Point', coordinates: [-83.48858, 9.48431] },
         province: 'San José',
         activityTypes: ['hiking', 'camping', 'viewpoint'],
@@ -471,9 +484,10 @@ module.exports = [
     {
         name: 'Catarata Nauyaca',
         description:
-            'Two falls on the Río Barú: a tall upper drop and a wider lower one with a deep ' +
-            'pool that is one of the best swims of any waterfall in the country. Reached on foot, ' +
-            'on horseback, or in a 4x4 shuttle; the walk in is long and hot but not technical.',
+            'Dos caídas sobre el río Barú: una alta arriba y otra más ancha abajo, con una poza ' +
+            'profunda que es de las mejores para nadar de cualquier catarata del país. Se llega ' +
+            'caminando, a caballo o en un transporte 4x4; la caminata es larga y calurosa, pero no ' +
+            'técnica.',
         location: { type: 'Point', coordinates: [-83.80692, 9.25446] },
         province: 'San José',
         activityTypes: ['waterfall', 'hiking'],
@@ -490,10 +504,10 @@ module.exports = [
     {
         name: 'Parque Nacional Los Quetzales',
         description:
-            'High oak and cloud forest along the Cerro de la Muerte road, and the most reliable ' +
-            'place in the country to actually see a resplendent quetzal, best in the nesting ' +
-            'months around March to June, early, near fruiting aguacatillo. Cold, and the weather ' +
-            'turns fast at this altitude.',
+            'Robledal y bosque nuboso de altura a lo largo de la carretera del Cerro de la Muerte, ' +
+            'y el lugar más confiable del país para ver de verdad un quetzal. La mejor época es la ' +
+            'de anidación, más o menos de marzo a junio, temprano y cerca de los aguacatillos con ' +
+            'fruta. Hace frío, y a esta altura el clima cambia rápido.',
         location: { type: 'Point', coordinates: [-83.83086, 9.58518] },
         province: 'San José',
         activityTypes: ['hiking', 'river'],
@@ -510,10 +524,10 @@ module.exports = [
     {
         name: 'Reserva Biológica Bosque Nuboso Monteverde',
         description:
-            'The cloud forest reserve on the continental divide. Suspended bridges put you up in ' +
-            'the canopy where the epiphytes and the birds actually are, and the trails below are ' +
-            'gentle and well built. It rains sideways here most afternoons, and that is the ' +
-            'ecosystem working, not bad luck.',
+            'La reserva de bosque nuboso sobre la divisoria continental. Los puentes colgantes lo ' +
+            'ponen a uno en el dosel, donde de verdad están las epífitas y las aves, y los ' +
+            'senderos de abajo son suaves y están bien hechos. Aquí casi todas las tardes llueve ' +
+            'de lado, y eso es el ecosistema funcionando, no mala suerte.',
         location: { type: 'Point', coordinates: [-84.78771, 10.30345] },
         province: 'Puntarenas',
         activityTypes: ['hiking', 'hanging-bridges'],
@@ -529,10 +543,11 @@ module.exports = [
     {
         name: 'Parque Nacional Manuel Antonio',
         description:
-            'Small, busy, and still worth it: rainforest running straight down to white beaches, ' +
-            'with sloths, capuchins and howlers close enough that the wildlife finds you rather ' +
-            'than the other way round. Daily entry is capped and it closes one day a week; going ' +
-            'at opening is the difference between a good visit and a queue.',
+            'Pequeño, concurrido y aun así vale la pena: bosque lluvioso que baja directo hasta ' +
+            'playas de arena blanca, con perezosos, monos cariblancos y congos tan cerca que es la ' +
+            'fauna la que lo encuentra a uno y no al revés. La entrada diaria tiene cupo y el ' +
+            'parque cierra un día a la semana; llegar a la hora de apertura es la diferencia entre ' +
+            'una buena visita y una fila.',
         location: { type: 'Point', coordinates: [-84.17723, 9.08499] },
         province: 'Puntarenas',
         activityTypes: ['hiking', 'snorkeling'],
@@ -549,11 +564,11 @@ module.exports = [
     {
         name: 'Parque Nacional Corcovado',
         description:
-            'The most biologically intense place in the country and the hardest to reach: ' +
-            'lowland primary rainforest on the Osa, with tapirs, all four monkey species and one ' +
-            'of the few viable jaguar populations left. Entry requires a certified guide and ' +
-            'ranger-station bookings made well in advance; the Sirena sector is reached on foot ' +
-            'or by boat, not by road.',
+            'El lugar con más vida del país y el más difícil de alcanzar: bosque lluvioso primario ' +
+            'de bajura en la península de Osa, con dantas, las cuatro especies de mono y una de ' +
+            'las pocas poblaciones viables de jaguar que quedan. La entrada exige un guía ' +
+            'certificado y reservas en las estaciones de guardaparques hechas con mucha ' +
+            'anticipación; al sector Sirena se llega caminando o en bote, no por carretera.',
         location: { type: 'Point', coordinates: [-83.57411, 8.54532] },
         province: 'Puntarenas',
         activityTypes: ['hiking', 'camping'],
@@ -572,10 +587,10 @@ module.exports = [
     {
         name: 'Parque Nacional Marino Ballena',
         description:
-            "The sandbar off Uvita that forms a whale's tail at low tide, and the shape is real and " +
-            'you can walk out onto it, but only on the right tide, so this is a spot where timing ' +
-            'is the entire plan. Humpbacks pass through on two separate migrations, which gives ' +
-            'the park an unusually long whale season.',
+            'La barra de arena frente a Uvita que forma una cola de ballena con la marea baja. La ' +
+            'forma es real y se puede caminar sobre ella, pero solo con la marea correcta, así que ' +
+            'aquí el horario es todo el plan. Las ballenas jorobadas pasan en dos migraciones ' +
+            'distintas, lo que le da al parque una temporada de ballenas inusualmente larga.',
         location: { type: 'Point', coordinates: [-83.73429, 9.13051] },
         province: 'Puntarenas',
         activityTypes: ['snorkeling', 'hiking'],
@@ -590,9 +605,10 @@ module.exports = [
     {
         name: 'Catarata Uvita',
         description:
-            'A short fall just inland from Uvita with a smooth rock chute people slide down into ' +
-            'the pool. Small, easy to reach, and much more a swimming hole than a hike, so it is the ' +
-            'natural pairing with Marino Ballena on the same day.',
+            'Una caída corta un poco tierra adentro de Uvita, con un tobogán de roca lisa por el ' +
+            'que la gente se desliza hasta la poza. Pequeña, fácil de alcanzar y mucho más poza ' +
+            'para nadar que caminata, así que combina naturalmente con Marino Ballena el mismo ' +
+            'día.',
         location: { type: 'Point', coordinates: [-83.73034, 9.17689] },
         province: 'Puntarenas',
         activityTypes: ['waterfall'],
@@ -607,10 +623,9 @@ module.exports = [
     {
         name: '100% Aventura Monteverde',
         description:
-            'The canopy tour above the Monteverde cloud forest, including one of the longest ' +
-            'single zipline runs in Latin America and a Tarzan swing out over a gully. Weather ' +
-            'here is its own decision-maker: the same wind that feeds the cloud forest is what ' +
-            'grounds the lines.',
+            'El canopy sobre el bosque nuboso de Monteverde, con uno de los cables más largos de ' +
+            'América Latina y un columpio Tarzán sobre una quebrada. Aquí el clima decide por su ' +
+            'cuenta: el mismo viento que alimenta el bosque nuboso es el que detiene los cables.',
         location: { type: 'Point', coordinates: [-84.8287, 10.3433] },
         // Reverse-geocodes to Guanacaste (Tilarán) because the coordinate sits near the
         // canton line, but Monteverde is a canton of Puntarenas, so the geocoder is overridden
@@ -631,10 +646,10 @@ module.exports = [
     {
         name: 'Parque Nacional Cahuita',
         description:
-            "A flat coastal trail running between the sea and the forest, with the country's " +
-            'most accessible living coral reef just offshore. Snorkelling is guided-only over the ' +
-            'reef itself. Entry at the Kelly Creek end is by donation, which makes it one of the ' +
-            'cheapest national parks to visit.',
+            'Un sendero costero plano entre el mar y el bosque, con el arrecife de coral vivo más ' +
+            'accesible del país justo frente a la costa. El snorkel sobre el arrecife solo se hace ' +
+            'con guía. La entrada por el lado de Kelly Creek es por donación, lo que lo vuelve uno ' +
+            'de los parques nacionales más baratos de visitar.',
         location: { type: 'Point', coordinates: [-82.73384, 9.78078] },
         province: 'Limón',
         activityTypes: ['snorkeling', 'hiking'],
@@ -651,11 +666,11 @@ module.exports = [
     {
         name: 'Parque Nacional Tortuguero',
         description:
-            'A network of freshwater canals behind the Caribbean beach, with no road in, so you ' +
-            'arrive by boat or small plane, and you get around the same way. The green turtle ' +
-            'nesting arribada from roughly July to October is the headline, but the canals ' +
-            'themselves are the reason to stay: caimans, river otters, and three kinds of monkey ' +
-            'from a paddled canoe at dawn.',
+            'Una red de canales de agua dulce detrás de la playa caribeña, sin carretera de ' +
+            'acceso: se llega en bote o en avioneta, y uno se mueve de la misma forma. El desove ' +
+            'de la tortuga verde, más o menos de julio a octubre, es lo más famoso, pero los ' +
+            'canales son la razón para quedarse: caimanes, nutrias y tres especies de mono desde ' +
+            'una canoa a remo al amanecer.',
         location: { type: 'Point', coordinates: [-83.42562, 10.48735] },
         province: 'Limón',
         activityTypes: ['river', 'hiking'],
@@ -671,10 +686,11 @@ module.exports = [
     {
         name: 'Refugio Nacional Gandoca-Manzanillo',
         description:
-            'The stretch of Caribbean coast below Puerto Viejo where the forest runs to the ' +
-            'sand, a coastal trail toward Punta Mona, calm reef-protected water for snorkelling ' +
-            'off Manzanillo, and far fewer people than Cahuita. The trail past Manzanillo gets ' +
-            'muddy and unclear; it is the one section here worth a guide.',
+            'El tramo de costa caribeña al sur de Puerto Viejo donde el bosque llega hasta la ' +
+            'arena: un sendero costero hacia Punta Mona, agua tranquila protegida por el arrecife ' +
+            'para hacer snorkel frente a Manzanillo, y mucha menos gente que en Cahuita. El ' +
+            'sendero después de Manzanillo se pone barroso y confuso; es el único tramo de aquí en ' +
+            'el que vale la pena llevar guía.',
         location: { type: 'Point', coordinates: [-82.6418, 9.60323] },
         province: 'Limón',
         activityTypes: ['snorkeling', 'hiking'],

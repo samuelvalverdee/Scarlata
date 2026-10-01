@@ -129,20 +129,20 @@ function makeRandom(seed = 20260905) {
 }
 
 const NOTES = [
-    'Salimos temprano, valio cada paso.',
-    'Trail was muddy after the rain - boots, not tennis shoes.',
-    'Llegamos al mediodia y estaba lleno. Ir antes de las 8.',
-    'Second time here and still worth it.',
-    'Water was freezing. Went in anyway.',
+    'Salimos temprano y valió cada paso.',
+    'El sendero estaba lleno de barro después de la lluvia: botas, no tenis.',
+    'Llegamos al mediodía y estaba lleno. Mejor llegar antes de las 8.',
+    'Segunda vez aquí y sigue valiendo la pena.',
+    'El agua estaba heladísima. Igual nos metimos.',
 ];
 
 const REVIEW_BODIES = [
-    'Exactly as described. Easy to find and the drive in was fine in a normal car.',
-    'Beautiful, but go early - by 10am it is packed and you lose the whole point of it.',
-    'Harder than I expected. Fine if you hike regularly, rough if you do not.',
-    'One of those places you end up bringing everyone you know back to.',
-    'Good half-day trip from San Jose. Bring cash, there is no signal for card readers.',
-    'Worth it, though the last stretch of road is not for a sedan.',
+    'Tal cual como lo describen. Fácil de encontrar y se llega bien en un carro normal.',
+    'Precioso, pero hay que ir temprano: a las 10 ya está lleno y se pierde toda la gracia.',
+    'Más duro de lo que esperaba. Bien si uno camina seguido, pesado si no.',
+    'De esos lugares a los que uno termina trayendo a todo el mundo.',
+    'Buen paseo de medio día desde San José. Lleve efectivo, que no hay señal para los datáfonos.',
+    'Vale la pena, aunque el último tramo del camino no es para un sedán.',
 ];
 
 async function seedActivity(users, spots) {
