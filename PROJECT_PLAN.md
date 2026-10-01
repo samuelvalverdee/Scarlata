@@ -110,7 +110,7 @@ queries, middleware structure, async error handling, multer/cloudinary) carries 
 | Backend framework | Express (JSON API, no view engine) | Course teaches EJS-rendered Express; here Express only serves `/api/*` JSON |
 | Database | MongoDB + Mongoose | Same as course |
 | Auth | passport, passport-local, passport-local-mongoose, express-session, connect-mongo | Session-cookie auth, same model as course — consumed from React via fetch with credentials include + CORS with credentials true |
-| Validation | joi (server), not yet added | Course's approach; consider zod client-side too since React forms want their own validation. Until then `utils/normalizeError.js` turns Mongoose errors into honest 400/409 responses |
+| Validation | joi (server) | `server/schemas.js` + the `validate` middleware. Consider zod client-side too since React forms want their own validation. `utils/normalizeError.js` stays as the safety net for Mongoose errors |
 | Images | multer, multer-storage-cloudinary, cloudinary | Same as course |
 | Maps | @mapbox/mapbox-sdk (geocoding) + a rendering library TBD — see Open Decisions | Course only needs geocoding server-side; the rendering library is new since there's no more EJS+Mapbox GL script tag |
 | Security | helmet, express-mongo-sanitize, sanitize-html | Same as course |
@@ -252,9 +252,8 @@ noted. Phase 2 (React) hasn't started.
    keep beyond a YelpCamp reskin, and where the "fill the map" mechanic actually comes alive:
    want/visited status, votes, reviews, visit logs with photos, admin gallery promotion, and the
    `/me` logbook endpoints. -> React: review form, visit-log entry form, logbook/progress page.
-8. **Validation & hardening** — not started, with one change: **Joi is pulled forward** and gets
-   built right after the backend commit, before image uploads (uploads need the file and photo
-   checks anyway). What stays here: zod + react-hook-form client-side, helmet, mongo-sanitize,
+8. **Validation & hardening** — **Joi is done** (pulled forward and built before image uploads,
+   since uploads need the file and photo checks anyway). What stays here: zod + react-hook-form client-side, helmet, mongo-sanitize,
    sanitize-html, rate limiting.
 9. **Deployment** — API + static client, per your project's "deployment" focus.
 
@@ -265,8 +264,8 @@ noted. Phase 2 (React) hasn't started.
   provinces). Refine freely as you think through the concept more — this is local knowledge, not
   a technical decision. Every activity type now has at least one seeded spot, so removing one
   has a data cost.
-- **Spanish.** Production language should be Spanish; the seeded content is English. See
-  TODO.md for the `{ es, en }` question, best settled before the content grows.
+- **Spanish** (settled): spot content is stored in Spanish only, enum values stay English keys
+  that the frontend maps to Spanish labels. Frontend details in TODO.md, step 5.
 - **Mapping/rendering library** — you want to research this yourself once you get there. The
   course's Mapbox geocoding API call (server-side, turning an address into coordinates) is worth
   keeping regardless of what you pick for rendering — that part isn't the expensive one. What's
