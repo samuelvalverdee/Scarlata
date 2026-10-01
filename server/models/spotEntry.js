@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+const STATUSES = ['want', 'visited'];
+
 // A single trip to the spot. Kept as a subdocument array rather than its own collection
 // because logs are only ever read through their parent entry ("show me my visits to Chirripó"),
 // never queried on their own — and the array is naturally small (how many times can you
@@ -48,7 +50,7 @@ const SpotEntrySchema = new Schema(
         },
         status: {
             type: String,
-            enum: ['want', 'visited'],
+            enum: STATUSES,
             required: true,
         },
         // +1 / -1, or null for "visited but hasn't voted". Only meaningful when status is 'visited'.
@@ -86,3 +88,4 @@ SpotEntrySchema.pre('validate', function (next) {
 });
 
 module.exports = mongoose.model('SpotEntry', SpotEntrySchema);
+module.exports.STATUSES = STATUSES;

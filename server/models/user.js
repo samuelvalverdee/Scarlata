@@ -3,10 +3,15 @@ const Schema = mongoose.Schema;
 const passportLocalMongoose = require('passport-local-mongoose').default;
 
 const UserSchema = new Schema({
+    // Stored lowercased, so Ana@x.com and ana@x.com are one account, not two. Mongoose applies
+    // the same lowercase/trim to query filters on this path, which is what makes login by email
+    // case-insensitive too: findByUsername's { email } lookup gets lowercased before it runs.
     email: {
         type: String,
         required: true,
         unique: true,
+        lowercase: true,
+        trim: true,
     },
     // Spots are curated, so someone has to be allowed to curate them. This replaces the
     // per-document `author` ownership the course teaches on campgrounds: the question for a

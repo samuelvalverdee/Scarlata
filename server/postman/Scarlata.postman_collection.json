@@ -25,7 +25,7 @@
               "raw": "{\n  \"username\": \"samuel\",\n  \"email\": \"samuel@example.com\",\n  \"password\": \"changeme123\"\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "description": "Creates an account and signs you in immediately - the response sets the session cookie,\nso you do not need to call Login right after.\n\nBODY: username, email, password. All three required.\n\nNEW ACCOUNTS ARE ALWAYS role='user'. There is deliberately no route that grants admin.\nSee 'Spots - admin only > Create spot' for how to promote yourself.\n\nSuccess: 201 Created\nErrors:  409 if the email or username is already taken\n         400 if the password is missing"
+            "description": "Creates an account and signs you in immediately - the response sets the session cookie,\nso you do not need to call Login right after.\n\nBODY: username, email, password. All three required.\n  username  3-30 characters: letters, numbers, dots, dashes, underscores. No @, because\n            login accepts a username OR an email and the two must not be confusable.\n  email     a valid address, stored lowercased: Ana@x.com and ana@x.com are the same account,\n            and login by email works in any case\n  password  8-128 characters\nAny other key (role, say) is rejected, not ignored.\n\nNEW ACCOUNTS ARE ALWAYS role='user'. There is deliberately no route that grants admin.\nSee 'Spots - admin only > Create spot' for how to promote yourself.\n\nSuccess: 201 Created\nErrors:  409 if the email or username is already taken\n         400 validation, with a details entry per bad field"
           },
           "response": [],
           "event": [
@@ -153,6 +153,12 @@
               "path": ["spots"],
               "query": [
                 {
+                  "key": "q",
+                  "value": "rio celeste",
+                  "disabled": true,
+                  "description": "Text search over name and description, Spanish rules, accent-insensitive. Results come back by relevance."
+                },
+                {
                   "key": "activityType",
                   "value": "waterfall",
                   "disabled": true,
@@ -166,7 +172,7 @@
                 }
               ]
             },
-            "description": "Every spot on the map. PUBLIC - works signed out.\n\nNO BODY, NO AUTH, no headers.\n\nQUERY PARAMS: none work yet. The two below are disabled placeholders for the filtering\nthat lands later - leave them off for now.\n\nSuccess: 200 OK, a JSON array. It will be empty until you run the seed script (npm run seed) or\n         create a spot as an admin.\n\nThis request saves the first spot's id into {{spotId}}, so the requests below just work."
+            "description": "Every spot on the map. PUBLIC - works signed out.\n\nNO BODY, NO AUTH, no headers.\n\nORDER: alphabetical by Spanish rules (accents ignored, n before ñ).\n\nQUERY PARAMS:\n  q             text search, Spanish stemming, accent-insensitive: 'rio' finds 'Río', 'cataratas'\n                finds 'Catarata'. Ranked by relevance instead of by name. Blank is a 400.\n  activityType, province  disabled placeholders for the filtering that lands later.\n\nSuccess: 200 OK, a JSON array. It will be empty until you run the seed script (npm run seed) or\n         create a spot as an admin.\n\nThis request saves the first spot's id into {{spotId}}, so the requests below just work."
           },
           "response": [],
           "event": [
@@ -233,7 +239,7 @@
               "raw": "{\n  \"name\": \"Catarata del Toro\",\n  \"description\": \"A 90m waterfall dropping into an extinct volcanic crater near Bajos del Toro.\",\n  \"province\": \"Alajuela\",\n  \"activityTypes\": [\"waterfall\", \"hiking\"],\n  \"difficulty\": \"moderate\",\n  \"bestTimeOfDay\": \"morning\",\n  \"waterfallHeightM\": 90,\n  \"trailLengthKm\": 1.5,\n  \"estimatedDurationHrs\": 2,\n  \"swimmable\": false,\n  \"oneDayTrip\": true,\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [-84.2247, 10.2081]\n  }\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "description": "Adds a spot to the map. ADMIN ONLY.\n\nHOW TO BECOME AN ADMIN - there is no route for it, on purpose. Register normally, then flip\nthe field directly in MongoDB:\n\n    mongosh scarlata\n    db.users.updateOne({ username: 'samuel' }, { $set: { role: 'admin' } })\n\nThen run 'Auth > 2. Login' again so the session picks up the new role.\n\nBODY - required: name, province, difficulty, location.coordinates\n\n  province       one of the seven, spelled WITH ACCENTS exactly as in models/spot.js:\n                 San Jose / Alajuela / Cartago / Heredia / Guanacaste / Puntarenas / Limon\n                 (copy the accented spellings out of the model - the enum is strict)\n  difficulty     easy | moderate | hard\n  activityTypes  array. hiking, waterfall, river, camping, viewpoint, hot-springs,\n                 hanging-bridges, zipline, rafting, snorkeling\n  coordinates    [longitude, latitude] - LONGITUDE FIRST. That is GeoJSON order and it is the\n                 reverse of what Google Maps shows you. Costa Rica sits around lng -86 to -82,\n                 lat 8 to 11, so the FIRST number should be negative.\n  addedBy        do not send it. The server sets it from your session, and strips it from\n                 update payloads so a request cannot rewrite who added a spot.\n\nEverything else (trailLengthKm, waterfallHeightM, maxOccupancy, permitRequired...) is\noptional and only applies to some kinds of spot.\n\nSuccess: 201 Created\nErrors:  401 signed out\n         403 signed in but not an admin\n         400 validation - the response carries a 'details' object naming each bad field"
+            "description": "Adds a spot to the map. ADMIN ONLY.\n\nHOW TO BECOME AN ADMIN - there is no route for it, on purpose. Register normally, then flip\nthe field directly in MongoDB:\n\n    mongosh scarlata\n    db.users.updateOne({ username: 'samuel' }, { $set: { role: 'admin' } })\n\nThen run 'Auth > 2. Login' again so the session picks up the new role.\n\nBODY - required: name, province, difficulty, activityTypes (at least one), location.coordinates\nAlso accepted wrapped as { \"spot\": { ... } }.\n\n  province       one of the seven, spelled WITH ACCENTS exactly as in models/spot.js:\n                 San Jose / Alajuela / Cartago / Heredia / Guanacaste / Puntarenas / Limon\n                 (copy the accented spellings out of the model - the enum is strict)\n  difficulty     easy | moderate | hard\n  activityTypes  array. hiking, waterfall, river, camping, viewpoint, hot-springs,\n                 hanging-bridges, zipline, rafting, snorkeling\n  coordinates    [longitude, latitude] - LONGITUDE FIRST. That is GeoJSON order and it is the\n                 reverse of what Google Maps shows you. Costa Rica sits around lng -86 to -82,\n                 lat 8 to 11, so the FIRST number should be negative. Anything outside the mainland box is\n                 rejected, which is what catches swapped coordinates.\n  addedBy        do not send it. The server sets it from your session, and a request that\n                 includes it is rejected, so nobody can rewrite who added a spot.\n  images         do not send it either. The gallery routes own it.\n\nEverything else (trailLengthKm, waterfallHeightM, maxOccupancy, permitRequired...) is\noptional and only applies to some kinds of spot. Numeric specs must be positive\n(elevationGainM may be 0), maxOccupancy a whole number. Unknown keys are rejected.\n\nSuccess: 201 Created\nErrors:  401 signed out\n         403 signed in but not an admin\n         400 validation - the response carries a 'details' object naming each bad field"
           },
           "response": [],
           "event": [
@@ -275,7 +281,7 @@
               "raw": "{\n  \"difficulty\": \"hard\",\n  \"bestTimeOfDay\": \"sunrise\"\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "description": "Edits a spot. ADMIN ONLY.\n\nBODY: send only the fields you want to change - it is a partial update, untouched fields\nkeep their values.\n\nThe route loads the document and calls save(), rather than findByIdAndUpdate, so ALL schema\nvalidators run against the WHOLE document. An invalid enum is rejected even if it sits in a\nfield you did not send.\n\nSuccess: 200 OK - returns the updated spot\nErrors:  401, 403, 404, or 400 validation"
+            "description": "Edits a spot. ADMIN ONLY.\n\nBODY: send only the fields you want to change - it is a partial update, untouched fields\nkeep their values. Send null to clear an optional field. At least one field is required,\nand the same rules as Create apply to whatever you do send (addedBy and images are\nrejected here too).\n\nThe route loads the document and calls save(), rather than findByIdAndUpdate, so ALL schema\nvalidators run against the WHOLE document. An invalid enum is rejected even if it sits in a\nfield you did not send.\n\nSuccess: 200 OK - returns the updated spot\nErrors:  401, 403, 404, or 400 validation"
           },
           "response": [],
           "event": [
@@ -649,7 +655,7 @@
                 "raw": { "language": "json" }
               }
             },
-            "description": "BODY (all optional)\n  visitedAt       ISO date, defaults to now\n  activitiesDone  list drawn from THIS spot's activityTypes\n  notes           free text\n  photos          [{ url }], http(s) URLs only until uploads land\n\nSetup: spot marked visited. Saves the log id into {{logId}}.\nSuccess: 201, the new log\nErrors:  401, 403 not visited, 400 activity not offered by the spot / bad photo URL"
+            "description": "BODY (all optional)\n  visitedAt       ISO date, defaults to now, not in the future\n  activitiesDone  list drawn from THIS spot's activityTypes\n  notes           free text\n  photos          [{ url }], http(s) URLs only until uploads land, at most 10. A\n                  client-sent filename is rejected: it will be the Cloudinary id.\nAlso accepted wrapped as { \"log\": { ... } }.\n\nSetup: spot marked visited. Saves the log id into {{logId}}.\nSuccess: 201, the new log\nErrors:  401, 403 not visited, 400 activity not offered by the spot / bad photo URL / future date"
           },
           "response": [],
           "event": [
@@ -682,7 +688,7 @@
                 "raw": { "language": "json" }
               }
             },
-            "description": "Partial: only the fields you send change. Success: 200. Errors: 404 no such log on your entry."
+            "description": "Partial: only the fields you send change, same rules as Add a log, at least one field. Success: 200. Errors: 404 no such log on your entry."
           },
           "response": [],
           "event": [
@@ -956,7 +962,7 @@
               "raw": "{\n  \"name\": \"Bad Data\",\n  \"province\": \"Atlantis\",\n  \"difficulty\": \"trivial\",\n  \"location\": { \"coordinates\": [-83.85, 9.98] }\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "description": "SETUP: must be signed in AS AN ADMIN, otherwise you get 403 before validation ever runs.\n\nTwo bad enum values at once. The response names BOTH in a 'details' object keyed by field,\nwhich is the shape react-hook-form wants so it can attach each message to the right input.\n\nThis used to return 500. Fixed in utils/normalizeError.js."
+            "description": "SETUP: must be signed in AS AN ADMIN, otherwise you get 403 before validation ever runs.\n\nTwo bad enum values at once. The response names BOTH in a 'details' object keyed by field,\nwhich is the shape react-hook-form wants so it can attach each message to the right input.\n\nEach details entry is { message, type }. The message is developer-facing English; the\ntype (any.only, any.required, ...) is the stable key the frontend maps to Spanish copy.\nThis one also flags activityTypes, which is required."
           },
           "response": [],
           "event": [
@@ -1049,6 +1055,440 @@
                   "pm.test(\"409 Conflict\", () => pm.response.to.have.status(409));",
                   "pm.test(\"does not leak driver internals\", () =>",
                   "  pm.expect(pm.response.json().error).to.not.include('E11000'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validation - one bad request per route",
+      "description": "Each request here sends a body the schemas in server/schemas.js reject, and checks the\nfield and Joi error type that come back. Validation runs LAST in each route chain, so the\nsetup matters: signed out you get 401, as a non-admin 403, on an unvisited spot 403.\nRun the happy-path folders first so {{spotId}} and {{logId}} are filled in.\n\nSetup per request is in its description.",
+      "item": [
+        {
+          "name": "Login - operator injection",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": {\n    \"$ne\": null\n  },\n  \"password\": \"anything\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Signed out is fine. Without validation this object reached passport and became a Mongo\n$ne query matching the first user. Now it has to be a string."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"username: string.base\", () => pm.expect(pm.response.json().details['username'].type).to.eql('string.base'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - role in the body",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"eve\",\n  \"email\": \"eve@example.com\",\n  \"password\": \"longenough\",\n  \"role\": \"admin\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Signed out is fine. Unknown keys are rejected, so nobody can register themselves as admin."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"role: object.unknown\", () => pm.expect(pm.response.json().details['role'].type).to.eql('object.unknown'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - @ in username, short password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"eve@example.com\",\n  \"email\": \"eve@example.com\",\n  \"password\": \"short\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Signed out is fine. Two fields fail at once; details names both."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"username: string.pattern.base\", () => pm.expect(pm.response.json().details['username'].type).to.eql('string.pattern.base'));",
+                  "pm.test(\"password: string.min\", () => pm.expect(pm.response.json().details['password'].type).to.eql('string.min'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create spot - swapped coordinates, images",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/spots", "host": ["{{baseUrl}}"], "path": ["spots"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"spot\": {\n    \"name\": \"Swapped\",\n    \"location\": {\n      \"coordinates\": [\n        9.98,\n        -83.85\n      ]\n    },\n    \"province\": \"Cartago\",\n    \"activityTypes\": [\n      \"hiking\"\n    ],\n    \"difficulty\": \"easy\",\n    \"images\": []\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: admin. [lat, lng] instead of [lng, lat] lands outside Costa Rica, and images is owned by the gallery routes."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"location.coordinates.0: number.max\", () => pm.expect(pm.response.json().details['location.coordinates.0'].type).to.eql('number.max'));",
+                  "pm.test(\"location.coordinates.1: number.min\", () => pm.expect(pm.response.json().details['location.coordinates.1'].type).to.eql('number.min'));",
+                  "pm.test(\"images: any.unknown\", () => pm.expect(pm.response.json().details['images'].type).to.eql('any.unknown'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update spot - addedBy",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"addedBy\": \"000000000000000000000000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: admin. Who added a spot is a record, not an editable field."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"addedBy: any.unknown\", () => pm.expect(pm.response.json().details['addedBy'].type).to.eql('any.unknown'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update spot - empty body",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}"]
+            },
+            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "description": "SETUP: admin. An update has to change something."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"body: object.min\", () => pm.expect(pm.response.json().details['body'].type).to.eql('object.min'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Status - unknown value",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "status"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"been-there\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: signed in. Only 'want' or 'visited'."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"status: any.only\", () => pm.expect(pm.response.json().details['status'].type).to.eql('any.only'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vote - out of range",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/vote",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "vote"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vote\": 5\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: signed in, spot marked visited. Only 1 or -1."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"vote: any.only\", () => pm.expect(pm.response.json().details['vote'].type).to.eql('any.only'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create review - half star, blank body",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "reviews"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review\": {\n    \"rating\": 4.5,\n    \"body\": \"   \"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: signed in, spot marked visited. Whole stars only; a body that trims to nothing is empty."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"rating: number.integer\", () => pm.expect(pm.response.json().details['rating'].type).to.eql('number.integer'));",
+                  "pm.test(\"body: string.empty\", () => pm.expect(pm.response.json().details['body'].type).to.eql('string.empty'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit review - author",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/reviews/{{reviewId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "reviews", "{{reviewId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"author\": \"000000000000000000000000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: signed in as the review author. Only rating and body are editable."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"author: object.unknown\", () => pm.expect(pm.response.json().details['author'].type).to.eql('object.unknown'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add a log - foreign activity, script URL, filename",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/logs",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "logs"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"log\": {\n    \"activitiesDone\": [\n      \"snorkeling\"\n    ],\n    \"photos\": [\n      {\n        \"url\": \"javascript:alert(1)\"\n      },\n      {\n        \"url\": \"https://example.com/a.jpg\",\n        \"filename\": \"someone-elses-asset\"\n      }\n    ]\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: signed in, spot marked visited, and pick a {{spotId}} that does not offer snorkeling.\nactivitiesDone is checked against THIS spot's activityTypes."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"activitiesDone.0: any.only\", () => pm.expect(pm.response.json().details['activitiesDone.0'].type).to.eql('any.only'));",
+                  "pm.test(\"photos.0.url: string.uriCustomScheme\", () => pm.expect(pm.response.json().details['photos.0.url'].type).to.eql('string.uriCustomScheme'));",
+                  "pm.test(\"photos.1.filename: object.unknown\", () => pm.expect(pm.response.json().details['photos.1.filename'].type).to.eql('object.unknown'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit a log - future date",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/logs/{{logId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "logs", "{{logId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"visitedAt\": \"2999-01-01\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: signed in, {{logId}} from Add a log. A visit cannot be in the future."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"visitedAt: date.max\", () => pm.expect(pm.response.json().details['visitedAt'].type).to.eql('date.max'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Promote photo - ids that are not ids",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/gallery",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "gallery"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"entryId\": {\n    \"$ne\": null\n  },\n  \"logId\": \"abc\",\n  \"url\": \"https://example.com/a.jpg\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "SETUP: admin. entryId used to reach findOne unchecked."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"entryId: string.base\", () => pm.expect(pm.response.json().details['entryId'].type).to.eql('string.base'));",
+                  "pm.test(\"logId: string.length\", () => pm.expect(pm.response.json().details['logId'].type).to.eql('string.length'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove gallery image - no url",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{spotId}}/gallery",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{spotId}}", "gallery"]
+            },
+            "description": "SETUP: admin. The query string is validated too."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"url: any.required\", () => pm.expect(pm.response.json().details['url'].type).to.eql('any.required'));"
                 ]
               }
             }

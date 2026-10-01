@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 // Starter list — you know Costa Rica's outdoor categories better than this does.
-// Add/remove freely; just keep it in sync with any validation (Joi) built on top later.
+// Add/remove freely: schemas.js imports these lists, so request validation follows along.
 const ACTIVITY_TYPES = [
     'hiking',
     'waterfall',
@@ -25,6 +25,14 @@ const PROVINCES = [
     'Puntarenas',
     'Limón',
 ];
+
+const DIFFICULTIES = ['easy', 'moderate', 'hard'];
+
+// Spanish comparison rules for sorting spot names: strength 1 ignores case and accents
+// ('Río' sorts with 'Rio'), while 'ñ' stays its own letter after 'n', as it does in Spanish.
+// Queries opt in with .collation(SPANISH), and the name index below is built with the same
+// collation so those sorts can use it.
+const SPANISH = { locale: 'es', strength: 1 };
 
 // Curated gallery. Two sources: photos we ship with the seed data, and standout photos
 // promoted out of a user's visit log by an admin (POST /spots/:id/gallery) — `credit` is
@@ -78,7 +86,7 @@ const SpotSchema = new Schema(
         ],
         difficulty: {
             type: String,
-            enum: ['easy', 'moderate', 'hard'],
+            enum: DIFFICULTIES,
             required: true,
         },
         bestTimeOfDay: {
@@ -111,6 +119,19 @@ const SpotSchema = new Schema(
 // The map view queries by area; the list view filters by province/activity.
 SpotSchema.index({ location: '2dsphere' });
 SpotSchema.index({ province: 1, activityTypes: 1 });
+SpotSchema.index({ name: 1 }, { collation: SPANISH });
+
+// Search (GET /spots?q=). Spanish stemming and stop words, so 'cataratas' finds 'catarata', and
+// text indexes are accent-insensitive on their own, so 'rio' finds 'Río' and 'tenideros' finds
+// 'Teñideros'. A name hit outranks a description hit.
+SpotSchema.index(
+    { name: 'text', description: 'text' },
+    {
+        name: 'spot_search',
+        default_language: 'spanish',
+        weights: { name: 10, description: 1 },
+    },
+);
 
 // Deleting a spot orphans every entry and review pointing at it — same cascade the course
 // teaches on campgrounds, just across two collections. Required inside the hook (not at the
@@ -128,3 +149,5 @@ SpotSchema.post('findOneAndDelete', async function (spot) {
 module.exports = mongoose.model('Spot', SpotSchema);
 module.exports.ACTIVITY_TYPES = ACTIVITY_TYPES;
 module.exports.PROVINCES = PROVINCES;
+module.exports.DIFFICULTIES = DIFFICULTIES;
+module.exports.SPANISH = SPANISH;

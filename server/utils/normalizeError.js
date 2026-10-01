@@ -9,21 +9,31 @@
 // This function is the translation layer between the two, so every error leaves the API in the
 // same shape regardless of where it came from.
 //
-// Note this is NOT a replacement for request validation (Joi, Phase 8). It's a safety net that
-// catches what slips through to the database layer. Validating up front gives better messages
-// and stops bad data earlier; this just makes sure the status code is honest either way.
+// Request validation (schemas.js, via middleware.validate) turns bad input away before it gets
+// here, as an ExpressError with `details`. The Mongoose branches below are the safety net for
+// whatever slips past it to the database layer. Both return the same `details` shape:
+// { [fieldPath]: { message, type } }, where `type` is a stable key the frontend maps to its own
+// Spanish copy instead of showing the English message.
 function normalizeError(err) {
     // Already ours — trust it.
     if (err.statusCode) {
-        return { statusCode: err.statusCode, message: err.message };
+        return {
+            statusCode: err.statusCode,
+            message: err.message,
+            details: err.details,
+        };
     }
 
     // Schema validation: enum, required, min/max. err.errors is keyed by field path, so the
     // client (react-hook-form, later) can attach each message to the input that caused it.
+    // Mongoose's `kind` ('enum', 'required') stands in for Joi's error type.
     if (err.name === 'ValidationError') {
         const details = {};
         for (const [path, fieldError] of Object.entries(err.errors)) {
-            details[path] = fieldError.message;
+            details[path] = {
+                message: fieldError.message,
+                type: fieldError.kind,
+            };
         }
         return { statusCode: 400, message: 'Validation failed', details };
     }

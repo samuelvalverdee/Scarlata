@@ -2,14 +2,15 @@ const express = require('express');
 const router = express.Router();
 const passport = require('../config/passport');
 const User = require('../models/user');
-const { isLoggedIn } = require('../middleware');
+const schemas = require('../schemas');
+const { isLoggedIn, validate } = require('../middleware');
 
 // No try/catch here on purpose. Catching locally and returning res.status(400) meant every
 // failure looked like a bad request and echoed the raw driver text straight to the client —
 // a duplicate email replied with the collection name, index name, and server address. Letting
 // the error through to the central handler routes it via utils/normalizeError instead, which
 // knows a taken email is a 409 and that unexpected errors should not be quoted verbatim.
-router.post('/register', async (req, res, next) => {
+router.post('/register', validate(schemas.register), async (req, res, next) => {
     const { username, email, password } = req.body;
     const user = new User({ username, email });
     const registeredUser = await User.register(user, password);
@@ -19,7 +20,9 @@ router.post('/register', async (req, res, next) => {
     });
 });
 
-router.post('/login', (req, res, next) => {
+// validate first matters most here: passport hands req.body.username to a Mongo query as is,
+// so it has to be a plain string by the time the strategy reads it.
+router.post('/login', validate(schemas.login), (req, res, next) => {
     passport.authenticate('local', (err, user, info) => {
         if (err) return next(err);
         if (!user)

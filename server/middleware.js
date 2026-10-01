@@ -67,3 +67,45 @@ module.exports.isReviewAuthor = async (req, res, next) => {
     req.review = review;
     next();
 };
+
+// Runs a schema from schemas.js against the request and replaces req.body (or req.query) with
+// the validated value (trimmed strings, ISO dates as Date objects). Goes last in each route's chain, after the
+// auth and lookup middleware: a caller who isn't allowed to make the request gets its 401, 403
+// or 404, not a tour of the schema.
+//
+// `schema` is a Joi schema, or a function of req for rules that depend on loaded data (the log
+// schemas need req.spot). `unwrap` accepts the `{ spot: {...} }` style envelope alongside a
+// bare body.
+module.exports.validate =
+    (schema, { source = 'body', unwrap } = {}) =>
+    (req, res, next) => {
+        // No JSON body (missing Content-Type, say) leaves req.body undefined; validating {}
+        // turns that into "field is required" rather than a TypeError and a 500.
+        let input = req[source] ?? {};
+        if (unwrap && input[unwrap] !== undefined) input = input[unwrap];
+
+        const resolved = typeof schema === 'function' ? schema(req) : schema;
+        const { error, value } = resolved.validate(input, {
+            abortEarly: false, // report every bad field, not just the first
+            errors: { wrap: { label: false } }, // `name is required`, not `"name" is required`
+        });
+
+        if (error) {
+            const details = {};
+            for (const { path, message, type } of error.details) {
+                // One entry per field: the first problem is the one worth fixing first.
+                details[path.join('.') || source] ??= { message, type };
+            }
+            throw new ExpressError('Validation failed', 400, details);
+        }
+
+        // req.query is a getter in Express 5, so plain assignment doesn't stick. Shadowing it on
+        // this request lets handlers read the validated (trimmed) value the usual way.
+        Object.defineProperty(req, source, {
+            value,
+            writable: true,
+            enumerable: true,
+            configurable: true,
+        });
+        next();
+    };
